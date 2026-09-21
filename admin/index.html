@@ -43,7 +43,7 @@
         <div class="card">
           <div class="topbar">
             <div>
-              <div class="small">GESTIÓN DEL EVENTO</div>
+              <div class="small">GESTIÓN DE TURNOS</div>
               <h2 id="turnsEventName" style="margin:4px 0 0"></h2>
               <div id="turnsEventMeta" class="meta"></div>
             </div>
@@ -51,29 +51,31 @@
           </div>
 
           <div class="grid grid-2" style="margin-top:16px">
-            <div class="stat">En espera<strong id="waitingCount">0</strong></div>
+            <div class="stat">Pendientes<strong id="waitingCount">0</strong></div>
             <div class="stat">Atendidos<strong id="doneCount">0</strong></div>
           </div>
 
           <div class="next-turn-panel" style="margin-top:16px;text-align:center">
-            <div class="small">SIGUIENTE TURNO</div>
+            <div class="small">PRÓXIMO TURNO</div>
             <div id="nextTurnBig" class="big-turn" style="margin:4px 0">—</div>
             <div id="nextTurnSearch" class="meta"></div>
-            <div class="actions" style="justify-content:center;margin-top:12px">
+
+            <div class="turn-main-actions">
               <button id="copyNextCodeBtn" class="btn btn-secondary hidden" type="button">COPIAR CÓDIGO</button>
+              <button id="attendNextBtn" class="btn btn-primary hidden" type="button">MARCAR COMO ATENDIDO</button>
             </div>
+
+            <button id="undoLastBtn" class="btn btn-quiet hidden" type="button">← VOLVER AL TURNO ANTERIOR</button>
           </div>
 
-          <p class="note" style="margin:14px 0 0">
-            El código completo sirve para buscar el mensaje en WhatsApp. La web ve los turnos emitidos, pero WhatsApp no informa si la persona llegó a tocar “Enviar”.
+          <p class="note" style="margin:14px 0 0;text-align:center">
+            Copiá el código, buscá el mensaje en WhatsApp y, cuando termine la lectura, marcá el turno como atendido. El siguiente aparece automáticamente.
           </p>
 
-          <hr>
-          <div class="topbar">
-            <h3 style="margin:0">Turnos</h3>
-            <button id="refreshTurnsBtn" class="btn btn-secondary" type="button">Actualizar</button>
-          </div>
-          <div id="turnsList" class="list"></div>
+          <details class="turn-history" style="margin-top:18px">
+            <summary>Ver todos los turnos</summary>
+            <div id="turnsList" class="list" style="margin-top:12px"></div>
+          </details>
         </div>
       </section>
 
@@ -254,7 +256,6 @@
     document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
     q('cancelEditBtn').addEventListener('click',()=>showTab('events'));
     q('backFromTurnsBtn').addEventListener('click',()=>showTab('events'));
-    q('refreshTurnsBtn').addEventListener('click',()=>loadTurnsPanel());
     q('cancelUserEditBtn').addEventListener('click',()=>{
       q('editUserBox').classList.add('hidden');
       q('editUserMsg').textContent='';
@@ -380,7 +381,7 @@
         return;
       }
       await loadEvents();
-    };
+    }
 
     window.toggleQueue=async(id,open)=>{
       const { error } = await db.rpc('set_event_queue',{p_event_id:id,p_open:open});
@@ -447,17 +448,41 @@
       currentTurns=data||[];
       const waiting=currentTurns.filter(t=>['issued','called','in_service'].includes(t.status));
       const done=currentTurns.filter(t=>t.status==='done');
+      const lastDone=[...done].sort((x,y)=>new Date(y.updated_at)-new Date(x.updated_at))[0]||null;
+
       q('waitingCount').textContent=waiting.length;
       q('doneCount').textContent=done.length;
 
       const next=waiting[0]||null;
       q('nextTurnBig').textContent=next?turnShort(next.code):'—';
       q('nextTurnSearch').textContent=next?'Buscar en WhatsApp: '+next.code:'No quedan turnos pendientes.';
-      q('copyNextCodeBtn').classList.toggle('hidden',!next);
-      q('copyNextCodeBtn').onclick=next?async()=>{
+
+      const copyBtn=q('copyNextCodeBtn');
+      const attendBtn=q('attendNextBtn');
+      const undoBtn=q('undoLastBtn');
+
+      copyBtn.classList.toggle('hidden',!next);
+      attendBtn.classList.toggle('hidden',!next);
+      undoBtn.classList.toggle('hidden',!lastDone);
+
+      copyBtn.onclick=next?async()=>{
         const ok=await copyText(next.code);
-        q('copyNextCodeBtn').textContent=ok?'COPIADO':'NO SE PUDO COPIAR';
-        setTimeout(()=>q('copyNextCodeBtn').textContent='COPIAR CÓDIGO',1200);
+        copyBtn.textContent=ok?'COPIADO':'NO SE PUDO COPIAR';
+        setTimeout(()=>copyBtn.textContent='COPIAR CÓDIGO',1200);
+      }:null;
+
+      attendBtn.onclick=next?async()=>{
+        attendBtn.disabled=true;
+        attendBtn.textContent='MARCANDO…';
+        await setTurnAttended(next.id,true);
+        attendBtn.disabled=false;
+        attendBtn.textContent='MARCAR COMO ATENDIDO';
+      }:null;
+
+      undoBtn.onclick=lastDone?async()=>{
+        undoBtn.disabled=true;
+        await setTurnAttended(lastDone.id,false);
+        undoBtn.disabled=false;
       }:null;
 
       if(!currentTurns.length){
@@ -473,19 +498,14 @@
               <div>
                 <strong class="turn-row-number">${turnShort(t.code)}</strong>
                 <div class="meta">${t.code}${t.services?.name?' · '+t.services.name:''}</div>
-                <div class="small">${turnStatusLabel(t.status)}</div>
               </div>
-              <button
-                class="btn ${attended?'btn-secondary':'btn-ok'}"
-                onclick="setTurnAttended('${t.id}',${!attended})">
-                ${attended?'DESHACER':'ATENDIDO'}
-              </button>
+              <span class="turn-status ${attended?'is-done':'is-waiting'}">${turnStatusLabel(t.status)}</span>
             </div>
           </div>`;
       }).join('');
     }
 
-    window.setTurnAttended=async(id,attended)=>{
+    async function setTurnAttended(id,attended){
       const { error }=await db.rpc('set_turn_attended',{
         p_turn_id:id,
         p_attended:attended
