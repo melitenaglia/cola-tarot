@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Administración · Soy Amor Universal 111</title>
-  <link rel="stylesheet" href="../styles.css?v=20260921-4">
+  <link rel="stylesheet" href="../styles.css?v=20260921-9">
 </head>
 <body>
   <main class="container">
@@ -157,6 +157,7 @@
           <h2>Configuración pública</h2>
           <form id="settingsForm" class="stack">
             <label>Nombre / marca<input id="setBrand"></label>
+            <label>Subtítulo público (opcional)<input id="setSubtitle" placeholder="Ej.: Reservá tu turno para el evento"></label>
             <label>WhatsApp<input id="setWhatsapp" placeholder="346..."></label>
             <label>Instagram<input id="setInstagram" type="url"></label>
             <label>Web<input id="setWebsite" type="url"></label>
@@ -706,6 +707,7 @@
       const { data }=await db.from('app_settings').select('*').eq('id',1).maybeSingle();
       if(!data)return;
       q('setBrand').value=data.brand_name||'';
+      q('setSubtitle').value=data.public_subtitle||'';
       q('setWhatsapp').value=data.whatsapp_number||'';
       q('setInstagram').value=data.instagram_url||'';
       q('setWebsite').value=data.website_url||'';
@@ -715,6 +717,7 @@
       e.preventDefault(); q('settingsMsg').textContent='Guardando…';
       const { error }=await db.from('app_settings').update({
         brand_name:q('setBrand').value.trim(),
+        public_subtitle:q('setSubtitle').value.trim()||null,
         whatsapp_number:q('setWhatsapp').value.trim(),
         instagram_url:q('setInstagram').value.trim()||null,
         website_url:q('setWebsite').value.trim()||null,
