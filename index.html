@@ -24,10 +24,11 @@
       <div id="serviceBox" class="stack" style="margin-top:18px"></div>
 
       <div id="turnArea" class="hidden">
+        <div id="turnDate" class="small" style="opacity:.45;margin-top:12px;letter-spacing:.08em"></div>
         <div class="note">Tu turno es</div>
         <div id="turnCode" class="big-turn"></div>
         <button id="whatsappBtn" class="btn btn-primary" style="width:100%">CONFIRMAR POR WHATSAPP</button>
-        <p class="note">Tu lugar queda confirmado cuando enviás el mensaje de WhatsApp.</p>
+        <p id="whatsappHint" class="note">Tu lugar queda confirmado cuando enviás el mensaje de WhatsApp.</p>
       </div>
 
       <button id="takeTurnBtn" class="btn btn-primary" style="width:100%;margin-top:18px">SACAR TURNO</button>
@@ -80,12 +81,28 @@
     }
 
     function eventTurnKey(eventId){ return 'sau_turn_' + eventId; }
+    function whatsappOpenedKey(eventId){ return 'sau_whatsapp_opened_' + eventId; }
 
-    function buildWhatsAppUrl(turnCode) {
+    function splitTurnCode(fullCode) {
+      const match = String(fullCode || '').match(/^(\d{6})-(T\d+)$/i);
+      return match
+        ? { dateCode: match[1], turn: match[2].toUpperCase() }
+        : { dateCode: '', turn: String(fullCode || '') };
+    }
+
+    function displayDateFromCode(dateCode) {
+      if (!/^\d{6}$/.test(dateCode)) return '';
+      return dateCode.slice(0,2) + '/' + dateCode.slice(2,4) + '/' + dateCode.slice(4,6);
+    }
+
+    function buildWhatsAppUrl(fullCode) {
       const phone = (settings?.whatsapp_number || '').replace(/\D/g,'');
-      const msg = `🔮 Hola! Quiero sumarme a la lista de espera para hacer mi *Pregunta al Tarot*.
+      const parts = splitTurnCode(fullCode);
+      const msg = `Código: ${fullCode}
 
-*Mi turno es ${turnCode}*
+🔮 Hola! Quiero sumarme a la lista de espera para hacer mi *Pregunta al Tarot*.
+
+*Mi turno es ${parts.turn}*
 
 Confirmo mi lugar en la lista de espera.`;
       return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
@@ -171,10 +188,30 @@ Confirmo mi lugar en la lista de espera.`;
     }
 
     function showTurn(code) {
-      document.getElementById('turnCode').textContent = code;
+      const parts = splitTurnCode(code);
+      document.getElementById('turnDate').textContent = parts.dateCode ? displayDateFromCode(parts.dateCode) : '';
+      document.getElementById('turnCode').textContent = parts.turn;
       document.getElementById('turnArea').classList.remove('hidden');
       document.getElementById('takeTurnBtn').classList.add('hidden');
-      document.getElementById('whatsappBtn').onclick = () => { window.location.href = buildWhatsAppUrl(code); };
+
+      const btn = document.getElementById('whatsappBtn');
+      const hint = document.getElementById('whatsappHint');
+      const wasOpened = activeEvent && localStorage.getItem(whatsappOpenedKey(activeEvent.id)) === '1';
+
+      if (wasOpened) {
+        btn.textContent = 'ABRIR WHATSAPP DE NUEVO';
+        hint.textContent = 'Si ya tocaste Enviar en WhatsApp, listo. Si no, abrilo de nuevo y enviá el mensaje.';
+      } else {
+        btn.textContent = 'CONFIRMAR POR WHATSAPP';
+        hint.textContent = 'Tu lugar queda confirmado cuando enviás el mensaje de WhatsApp.';
+      }
+
+      btn.onclick = () => {
+        if (activeEvent) localStorage.setItem(whatsappOpenedKey(activeEvent.id), '1');
+        btn.textContent = 'ABRIR WHATSAPP DE NUEVO';
+        hint.textContent = 'Cuando vuelvas, si ya tocaste Enviar en WhatsApp, no tenés que hacer nada más.';
+        window.location.href = buildWhatsAppUrl(code);
+      };
     }
 
     function restoreTurn() {
@@ -206,6 +243,18 @@ Confirmo mi lugar en la lista de espera.`;
       localStorage.setItem(eventTurnKey(activeEvent.id), code);
       document.getElementById('queueStatus').textContent = 'Turno asignado.';
       showTurn(code);
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'visible' || !activeEvent) return;
+      const code = localStorage.getItem(eventTurnKey(activeEvent.id));
+      if (!code) return;
+      if (localStorage.getItem(whatsappOpenedKey(activeEvent.id)) === '1') {
+        const btn = document.getElementById('whatsappBtn');
+        const hint = document.getElementById('whatsappHint');
+        btn.textContent = 'ABRIR WHATSAPP DE NUEVO';
+        hint.textContent = 'Si ya tocaste Enviar en WhatsApp, listo. Si no, abrilo de nuevo y enviá el mensaje.';
+      }
     });
 
     (async () => {
