@@ -547,3 +547,40 @@ hr{
     font-weight:600;
   }
 }
+
+
+/* WhatsApp: acción final bien evidente */
+#whatsappBtn{
+  width:100%;
+  min-height:64px;
+  margin-top:10px;
+  padding:16px 20px;
+  font-size:17px;
+  font-weight:700;
+  letter-spacing:.015em;
+  border-radius:9px;
+  box-shadow:0 5px 14px rgba(33,34,32,.12);
+}
+.whatsapp-hint{
+  margin:12px 4px 0;
+  text-align:center;
+  font-size:14px;
+  line-height:1.5;
+}
+.whatsapp-hint strong{
+  color:var(--ink);
+  font-weight:700;
+}
+
+@media(max-width:720px){
+  #whatsappBtn{
+    min-height:62px;
+    padding:15px 16px;
+    font-size:16px;
+    font-weight:700;
+  }
+  .whatsapp-hint{
+    font-size:13px;
+    margin-top:11px;
+  }
+}
