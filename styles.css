@@ -487,3 +487,63 @@ hr{
     margin-left:auto;
   }
 }
+
+
+/* Más jerarquía y aire en la vista pública */
+#activeEventCard{
+  padding:24px;
+}
+#activeEventCard .event-title{
+  font-size:27px;
+  font-weight:600;
+  line-height:1.2;
+  margin-top:10px;
+}
+#activeMeta{
+  margin-top:8px;
+}
+#serviceBox{
+  margin-top:22px !important;
+}
+#serviceBox .list-item{
+  padding:16px 17px;
+}
+#takeTurnBtn{
+  min-height:50px;
+  margin-top:22px !important;
+  font-size:15px;
+  font-weight:600;
+}
+#queueStatus{
+  margin-top:14px !important;
+}
+
+@media(max-width:720px){
+  .container{
+    margin-left:18px;
+    margin-right:18px;
+  }
+  #activeEventCard{
+    padding:18px;
+  }
+  #activeEventCard .event-title{
+    font-size:23px;
+    font-weight:600;
+    margin-top:9px;
+  }
+  #activeMeta{
+    margin-top:7px;
+  }
+  #serviceBox{
+    margin-top:18px !important;
+  }
+  #serviceBox .list-item{
+    padding:14px;
+  }
+  #takeTurnBtn{
+    min-height:48px;
+    margin-top:20px !important;
+    font-size:14px;
+    font-weight:600;
+  }
+}
