@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Eventos · Soy Amor Universal 111</title>
-  <link rel="stylesheet" href="./styles.css?v=20260921-9">
+  <link rel="stylesheet" href="./styles.css?v=20260921-10">
 </head>
 <body>
   <main class="container">
@@ -24,18 +24,28 @@
       <div id="serviceBox" class="stack" style="margin-top:18px"></div>
 
       <div id="turnArea" class="hidden">
-        <div id="turnDate" class="small" style="opacity:.45;margin-top:12px;letter-spacing:.08em"></div>
-        <div id="turnLabel" class="turn-label">Tu turno será</div>
-        <div id="turnCode" class="big-turn"></div>
-        <div id="turnAssignedMsg" class="turn-assigned hidden">✓ Turno asignado</div>
-        <button id="whatsappBtn" class="btn btn-primary" style="width:100%">💬 CONFIRMAR POR WHATSAPP</button>
-        <p id="whatsappHint" class="note whatsapp-hint"><strong>ÚLTIMO PASO:</strong> enviá el mensaje para confirmar tu turno.</p>
-        <div id="queueProgress" class="queue-progress hidden">
-          <div class="queue-progress-current">
-            <span>Turno actual</span>
-            <strong id="currentTurnNow">—</strong>
+        <div id="activeTurnState">
+          <div id="turnDate" class="small" style="opacity:.45;margin-top:12px;letter-spacing:.08em"></div>
+          <div id="turnLabel" class="turn-label">Tu turno será</div>
+          <div id="turnCode" class="big-turn"></div>
+          <div id="turnAssignedMsg" class="turn-assigned hidden">✓ Turno asignado</div>
+          <button id="whatsappBtn" class="btn btn-primary" style="width:100%">💬 CONFIRMAR POR WHATSAPP</button>
+          <p id="whatsappHint" class="note whatsapp-hint"><strong>ÚLTIMO PASO:</strong> enviá el mensaje para confirmar tu turno.</p>
+          <div id="queueProgress" class="queue-progress hidden">
+            <div class="queue-progress-current">
+              <span>Turno actual</span>
+              <strong id="currentTurnNow">—</strong>
+            </div>
+            <div id="peopleAheadText" class="queue-progress-text"></div>
           </div>
-          <div id="peopleAheadText" class="queue-progress-text"></div>
+        </div>
+
+        <div id="completedTurnState" class="completed-turn hidden">
+          <div class="completed-turn-mark">✓</div>
+          <h2>Gracias por compartir este encuentro</h2>
+          <p>Espero que esta lectura te acompañe y te aporte un poquito de luz ✦</p>
+          <p class="note">Si te gustó la experiencia, podés dejar una reseña.</p>
+          <a id="completedReviewBtn" class="btn btn-primary hidden" target="_blank" rel="noopener">★ DEJAR UNA RESEÑA</a>
         </div>
       </div>
 
@@ -147,6 +157,9 @@ Confirmo mi lugar en la lista de espera.`;
       if (settings.google_review_url) {
         document.getElementById('reviewBlock').classList.remove('hidden');
         document.getElementById('reviewLink').href = settings.google_review_url;
+        const completedReviewBtn = document.getElementById('completedReviewBtn');
+        completedReviewBtn.href = settings.google_review_url;
+        completedReviewBtn.classList.remove('hidden');
       }
     }
 
@@ -227,6 +240,8 @@ Confirmo mi lugar en la lista de espera.`;
       document.getElementById('turnCode').textContent = parts.turn;
       document.getElementById('turnArea').classList.remove('hidden');
       document.getElementById('takeTurnBtn').classList.add('hidden');
+      document.getElementById('activeTurnState').classList.remove('hidden');
+      document.getElementById('completedTurnState').classList.add('hidden');
 
       const btn = document.getElementById('whatsappBtn');
       const hint = document.getElementById('whatsappHint');
@@ -262,6 +277,16 @@ Confirmo mi lugar en la lista de espera.`;
       };
     }
 
+    function showCompletedTurnState() {
+      document.getElementById('activeTurnState').classList.add('hidden');
+      document.getElementById('completedTurnState').classList.remove('hidden');
+    }
+
+    function showActiveTurnState() {
+      document.getElementById('completedTurnState').classList.add('hidden');
+      document.getElementById('activeTurnState').classList.remove('hidden');
+    }
+
     async function updateQueuePosition() {
       if (!activeEvent) return;
       const progress = document.getElementById('queueProgress');
@@ -274,12 +299,17 @@ Confirmo mi lugar en la lista de espera.`;
       if (error || !data?.length) return;
 
       const row = data[0];
+
+      if (row.user_status === 'done') {
+        showCompletedTurnState();
+        return;
+      }
+
+      showActiveTurnState();
       document.getElementById('currentTurnNow').textContent = turnDisplay(row.current_turn_number);
 
       const text = document.getElementById('peopleAheadText');
-      if (row.user_status === 'done') {
-        text.innerHTML = '<strong>Tu turno ya fue atendido.</strong>';
-      } else if (row.people_ahead === 0) {
+      if (row.people_ahead === 0) {
         text.innerHTML = '<strong>Sos el próximo turno.</strong>';
       } else if (row.people_ahead === 1) {
         text.innerHTML = '<strong>Hay 1 persona antes que vos.</strong>';
