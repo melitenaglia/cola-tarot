@@ -441,3 +441,34 @@ hr{
     margin-left:auto;
   }
 }
+
+
+/* Menú admin: hamburguesa en todas las vistas */
+.menu-toggle{
+  display:inline-flex !important;
+}
+#adminTabs.tabs{
+  display:none !important;
+  grid-template-columns:1fr;
+  gap:2px;
+  margin:7px 0 12px;
+  padding:5px;
+  background:#fafafa;
+  border:1px solid var(--line);
+  border-radius:6px;
+}
+#adminTabs.tabs.mobile-open{
+  display:grid !important;
+}
+#adminTabs .tab{
+  width:100%;
+  text-align:left;
+  background:transparent;
+  border:0;
+  border-radius:4px;
+  padding:8px 9px;
+}
+#adminTabs .tab.active{
+  background:#ededeb;
+  color:var(--text);
+}
