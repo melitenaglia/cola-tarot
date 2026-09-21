@@ -679,3 +679,19 @@ hr{
     font-size:13px;
   }
 }
+
+
+/* Header público sin estrellas */
+.hero::before{
+  content:none !important;
+  display:none !important;
+}
+
+/* Servicio público: solo el nombre */
+.service-only{
+  text-align:left;
+}
+.service-only strong{
+  display:block;
+  font-weight:600;
+}
