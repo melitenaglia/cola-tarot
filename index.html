@@ -10,13 +10,13 @@
   <main class="container">
     <section class="hero">
       <h1 class="brand">🔮 Soy Amor Universal</h1>
-      <p class="sub">Eventos, lecturas y cola de espera</p>
+      <p class="sub">Eventos, lecturas y lista de espera</p>
     </section>
 
     <section id="activeEventCard" class="card hidden">
       <div class="topbar">
         <div>
-          <span class="pill pill-open">COLA ABIERTA</span>
+          <span class="pill pill-open">LISTA DE ESPERA ABIERTA</span>
           <h2 id="activeName" class="event-title"></h2>
         </div>
       </div>
@@ -35,7 +35,7 @@
     </section>
 
     <section id="noActive" class="card">
-      <h2>Ahora mismo no hay una cola abierta</h2>
+      <h2>Ahora mismo no hay una lista de espera abierta</h2>
       <p class="meta">Podés volver más tarde o mirar los próximos eventos.</p>
     </section>
 
@@ -83,11 +83,11 @@
 
     function buildWhatsAppUrl(turnCode) {
       const phone = (settings?.whatsapp_number || '').replace(/\D/g,'');
-      const msg = `🔮 Hola! Quiero sumarme a la cola de espera para hacer mi *Pregunta al Tarot*.
+      const msg = `🔮 Hola! Quiero sumarme a la lista de espera para hacer mi *Pregunta al Tarot*.
 
 *Mi turno es ${turnCode}*
 
-Confirmo mi lugar en la cola.`;
+Confirmo mi lugar en la lista de espera.`;
       return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
     }
 
