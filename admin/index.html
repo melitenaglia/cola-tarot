@@ -39,6 +39,44 @@
         <div id="eventsList" class="list"></div>
       </section>
 
+      <section id="tab-turns" class="tabpane hidden">
+        <div class="card">
+          <div class="topbar">
+            <div>
+              <div class="small">GESTIÓN DEL EVENTO</div>
+              <h2 id="turnsEventName" style="margin:4px 0 0"></h2>
+              <div id="turnsEventMeta" class="meta"></div>
+            </div>
+            <button id="backFromTurnsBtn" class="btn btn-secondary" type="button">Volver</button>
+          </div>
+
+          <div class="grid grid-2" style="margin-top:16px">
+            <div class="stat">En espera<strong id="waitingCount">0</strong></div>
+            <div class="stat">Atendidos<strong id="doneCount">0</strong></div>
+          </div>
+
+          <div class="next-turn-panel" style="margin-top:16px;text-align:center">
+            <div class="small">SIGUIENTE TURNO</div>
+            <div id="nextTurnBig" class="big-turn" style="margin:4px 0">—</div>
+            <div id="nextTurnSearch" class="meta"></div>
+            <div class="actions" style="justify-content:center;margin-top:12px">
+              <button id="copyNextCodeBtn" class="btn btn-secondary hidden" type="button">COPIAR CÓDIGO</button>
+            </div>
+          </div>
+
+          <p class="note" style="margin:14px 0 0">
+            El código completo sirve para buscar el mensaje en WhatsApp. La web ve los turnos emitidos, pero WhatsApp no informa si la persona llegó a tocar “Enviar”.
+          </p>
+
+          <hr>
+          <div class="topbar">
+            <h3 style="margin:0">Turnos</h3>
+            <button id="refreshTurnsBtn" class="btn btn-secondary" type="button">Actualizar</button>
+          </div>
+          <div id="turnsList" class="list"></div>
+        </div>
+      </section>
+
       <section id="tab-new" class="tabpane hidden">
         <div class="card">
           <h2>Nuevo evento</h2>
@@ -127,6 +165,26 @@
         <div class="card">
           <h2>Usuarios</h2>
           <div id="usersList" class="list"></div>
+
+          <div id="editUserBox" class="list-item hidden" style="margin-top:14px">
+            <div class="topbar">
+              <h3 style="margin:0">Editar usuario</h3>
+              <button id="cancelUserEditBtn" class="btn btn-secondary" type="button">Cancelar</button>
+            </div>
+            <form id="editUserForm" class="stack">
+              <input id="editUsrId" type="hidden">
+              <div class="grid grid-2">
+                <label>Nombre<input id="editUsrName" required></label>
+                <label>Email<input id="editUsrEmail" type="email" required></label>
+                <label>Nueva contraseña (opcional)<input id="editUsrPassword" type="password" minlength="8" placeholder="Dejar vacío para no cambiarla"></label>
+                <label>Rol<select id="editUsrRole"><option value="staff">Staff</option><option value="admin">Admin</option></select></label>
+              </div>
+              <label class="checkline"><input id="editUsrActive" type="checkbox"> Usuario activo</label>
+              <button class="btn btn-primary" type="submit">GUARDAR CAMBIOS</button>
+              <div id="editUserMsg" class="note"></div>
+            </form>
+          </div>
+
           <hr>
           <h3>Crear usuario</h3>
           <form id="userForm" class="stack">
@@ -152,6 +210,10 @@
     let session = null;
     let profile = null;
     let cachedEvents = [];
+    let currentTurnsEventId = null;
+    let currentTurns = [];
+    let turnsRefreshTimer = null;
+    let cachedUsers = [];
 
     const q = id => document.getElementById(id);
     const localDT = (date,time) => new Date(date+'T'+time+':00').toISOString();
@@ -177,6 +239,10 @@
     };
 
     function showTab(name){
+      if(name!=='turns' && turnsRefreshTimer){
+        clearInterval(turnsRefreshTimer);
+        turnsRefreshTimer=null;
+      }
       document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
       document.querySelectorAll('.tabpane').forEach(p=>p.classList.add('hidden'));
       q('tab-'+name).classList.remove('hidden');
@@ -187,6 +253,12 @@
 
     document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
     q('cancelEditBtn').addEventListener('click',()=>showTab('events'));
+    q('backFromTurnsBtn').addEventListener('click',()=>showTab('events'));
+    q('refreshTurnsBtn').addEventListener('click',()=>loadTurnsPanel());
+    q('cancelUserEditBtn').addEventListener('click',()=>{
+      q('editUserBox').classList.add('hidden');
+      q('editUserMsg').textContent='';
+    });
 
     function syncPaidFields(checkboxId, containerId){
       const checked=q(checkboxId).checked;
@@ -229,7 +301,7 @@
     q('logoutBtn').addEventListener('click',async()=>{await db.auth.signOut();location.reload();});
 
     async function loadEvents(){
-      const { data, error } = await db.from('events').select('*, services(*)').order('starts_at',{ascending:false});
+      const { data, error } = await db.from('events').select('*, services(*), turns(id,number,code,status,created_at,updated_at,service_id)').order('starts_at',{ascending:false});
       const box=q('eventsList');
       if(error){box.innerHTML='<div class="note">'+error.message+'</div>';return;}
       cachedEvents=data||[];
@@ -244,19 +316,18 @@
             </div>
             <div class="actions">
               <button class="btn btn-secondary" onclick="editEvent('${e.id}')">EDITAR</button>
-              ${profile?.role==='admin' && e.current_number===0
+              ${profile?.role==='admin'
                 ? `<button class="btn btn-danger" onclick="deleteEvent('${e.id}')">ELIMINAR</button>`
                 : ''}
             </div>
           </div>
           <div class="grid grid-2">
-            <div class="stat">Último turno<strong>${e.current_number? e.event_code+'-T'+String(e.current_number).padStart(3,'0'):'—'}</strong></div>
-            <div class="stat">Ahora atendiendo<strong>${e.now_serving_number? 'T'+String(e.now_serving_number).padStart(3,'0'):'—'}</strong></div>
+            <div class="stat">Turnos emitidos<strong>${(e.turns||[]).length}</strong></div>
+            <div class="stat">Pendientes<strong>${(e.turns||[]).filter(t=>['issued','called','in_service'].includes(t.status)).length}</strong></div>
           </div>
           <div class="actions" style="margin-top:14px">
+            <button class="btn btn-primary" onclick="openTurns('${e.id}')">GESTIONAR TURNOS</button>
             <button class="btn ${e.queue_status==='open'?'btn-danger':'btn-ok'}" onclick="toggleQueue('${e.id}',${e.queue_status!=='open'})">${e.queue_status==='open'?'CERRAR LISTA':'ABRIR LISTA'}</button>
-            <button class="btn btn-secondary" onclick="moveServing('${e.id}',-1)">← Anterior</button>
-            <button class="btn btn-secondary" onclick="moveServing('${e.id}',1)">Siguiente →</button>
           </div>
           ${e.services?.length ? '<div class="note" style="margin-top:12px">'+e.services.map(serviceLabel).join('<br>')+'</div>':''}
         </div>`).join('');
@@ -291,9 +362,15 @@
     window.deleteEvent=async(id)=>{
       const e=cachedEvents.find(x=>x.id===id);
       if(!e)return;
+
+      if((e.turns||[]).length>0 || e.current_number>0){
+        alert('Este evento ya tiene turnos emitidos, por eso no se puede eliminar: necesitamos conservar el histórico.\n\nSi querés, cerrá la lista y dejalo como histórico.');
+        return;
+      }
+
       const ok=confirm(
         '¿Eliminar "' + e.name + '"?\n\n' +
-        'Esta acción elimina el evento y sus servicios. Solo se permite si nunca se emitieron turnos.'
+        'Se eliminará el evento y sus servicios. Esta acción no se puede deshacer.'
       );
       if(!ok)return;
 
@@ -310,9 +387,114 @@
       if(error) alert(error.message);
       await loadEvents();
     };
-    window.moveServing=async(id,delta)=>{
-      const { error } = await db.rpc('move_now_serving',{p_event_id:id,p_delta:delta});
-      if(error) alert(error.message);
+    const turnShort = code => {
+      const m=String(code||'').match(/(T\d+)$/i);
+      return m ? m[1].toUpperCase() : String(code||'');
+    };
+
+    const turnStatusLabel = status => {
+      if(status==='done') return 'ATENDIDO';
+      if(status==='skipped') return 'SALTADO';
+      if(status==='cancelled') return 'CANCELADO';
+      return 'EN ESPERA';
+    };
+
+    async function copyText(value){
+      try{
+        await navigator.clipboard.writeText(value);
+        return true;
+      }catch(_){
+        const el=document.createElement('textarea');
+        el.value=value;
+        el.style.position='fixed';
+        el.style.opacity='0';
+        document.body.appendChild(el);
+        el.select();
+        const ok=document.execCommand('copy');
+        el.remove();
+        return ok;
+      }
+    }
+
+    window.openTurns=async(id)=>{
+      currentTurnsEventId=id;
+      showTab('turns');
+      await loadTurnsPanel();
+      if(turnsRefreshTimer) clearInterval(turnsRefreshTimer);
+      turnsRefreshTimer=setInterval(loadTurnsPanel,5000);
+    };
+
+    async function loadTurnsPanel(){
+      if(!currentTurnsEventId)return;
+      const event=cachedEvents.find(e=>e.id===currentTurnsEventId);
+      if(event){
+        q('turnsEventName').textContent=event.name;
+        q('turnsEventMeta').textContent=fmt(event.starts_at)+(event.location_name?' · '+event.location_name:'');
+      }
+
+      const { data,error }=await db
+        .from('turns')
+        .select('id,event_id,service_id,number,code,status,created_at,updated_at,services(name)')
+        .eq('event_id',currentTurnsEventId)
+        .order('number',{ascending:true});
+
+      const box=q('turnsList');
+      if(error){
+        box.innerHTML='<div class="note">'+error.message+'</div>';
+        return;
+      }
+
+      currentTurns=data||[];
+      const waiting=currentTurns.filter(t=>['issued','called','in_service'].includes(t.status));
+      const done=currentTurns.filter(t=>t.status==='done');
+      q('waitingCount').textContent=waiting.length;
+      q('doneCount').textContent=done.length;
+
+      const next=waiting[0]||null;
+      q('nextTurnBig').textContent=next?turnShort(next.code):'—';
+      q('nextTurnSearch').textContent=next?'Buscar en WhatsApp: '+next.code:'No quedan turnos pendientes.';
+      q('copyNextCodeBtn').classList.toggle('hidden',!next);
+      q('copyNextCodeBtn').onclick=next?async()=>{
+        const ok=await copyText(next.code);
+        q('copyNextCodeBtn').textContent=ok?'COPIADO':'NO SE PUDO COPIAR';
+        setTimeout(()=>q('copyNextCodeBtn').textContent='COPIAR CÓDIGO',1200);
+      }:null;
+
+      if(!currentTurns.length){
+        box.innerHTML='<div class="note">Todavía no hay turnos emitidos para este evento.</div>';
+        return;
+      }
+
+      box.innerHTML=currentTurns.map(t=>{
+        const attended=t.status==='done';
+        return `
+          <div class="list-item turn-row ${attended?'turn-done':''}">
+            <div class="topbar" style="margin:0">
+              <div>
+                <strong class="turn-row-number">${turnShort(t.code)}</strong>
+                <div class="meta">${t.code}${t.services?.name?' · '+t.services.name:''}</div>
+                <div class="small">${turnStatusLabel(t.status)}</div>
+              </div>
+              <button
+                class="btn ${attended?'btn-secondary':'btn-ok'}"
+                onclick="setTurnAttended('${t.id}',${!attended})">
+                ${attended?'DESHACER':'ATENDIDO'}
+              </button>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    window.setTurnAttended=async(id,attended)=>{
+      const { error }=await db.rpc('set_turn_attended',{
+        p_turn_id:id,
+        p_attended:attended
+      });
+      if(error){
+        alert(error.message);
+        return;
+      }
+      await loadTurnsPanel();
       await loadEvents();
     };
 
@@ -422,8 +604,55 @@
       const { data,error }=await db.from('profiles').select('*').order('created_at');
       const box=q('usersList');
       if(error){box.innerHTML='<div class="note">'+error.message+'</div>';return;}
-      box.innerHTML=(data||[]).map(u=>`<div class="list-item"><strong>${u.display_name||'Usuario'}</strong><div class="meta">${u.role} · ${u.active?'activo':'inactivo'}</div></div>`).join('')||'<div class="note">No hay usuarios.</div>';
+      cachedUsers=data||[];
+      box.innerHTML=cachedUsers.map(u=>`
+        <div class="list-item">
+          <div class="topbar" style="margin:0">
+            <div>
+              <strong>${u.display_name||'Usuario'}</strong>
+              <div class="meta">${u.email||''}</div>
+              <div class="small">${u.role} · ${u.active?'activo':'inactivo'}</div>
+            </div>
+            <button class="btn btn-secondary" onclick="editUser('${u.user_id}')">EDITAR</button>
+          </div>
+        </div>`).join('')||'<div class="note">No hay usuarios.</div>';
     }
+
+    window.editUser=id=>{
+      const u=cachedUsers.find(x=>x.user_id===id);
+      if(!u)return;
+      q('editUsrId').value=u.user_id;
+      q('editUsrName').value=u.display_name||'';
+      q('editUsrEmail').value=u.email||'';
+      q('editUsrPassword').value='';
+      q('editUsrRole').value=u.role==='admin'?'admin':'staff';
+      q('editUsrActive').checked=!!u.active;
+      q('editUserMsg').textContent='';
+      q('editUserBox').classList.remove('hidden');
+      q('editUserBox').scrollIntoView({behavior:'smooth',block:'center'});
+    };
+
+    q('editUserForm').addEventListener('submit',async e=>{
+      e.preventDefault();
+      q('editUserMsg').textContent='Guardando…';
+      const { data:{session:current} }=await db.auth.getSession();
+      const { data,error }=await db.functions.invoke('admin-update-user',{
+        body:{
+          user_id:q('editUsrId').value,
+          display_name:q('editUsrName').value.trim(),
+          email:q('editUsrEmail').value.trim(),
+          password:q('editUsrPassword').value,
+          role:q('editUsrRole').value,
+          active:q('editUsrActive').checked
+        },
+        headers:{Authorization:'Bearer '+current.access_token}
+      });
+      if(error){q('editUserMsg').textContent=error.message;return;}
+      if(data?.error){q('editUserMsg').textContent=data.error;return;}
+      q('editUserMsg').textContent='Cambios guardados.';
+      q('editUsrPassword').value='';
+      await loadUsers();
+    });
 
     q('userForm').addEventListener('submit',async e=>{
       e.preventDefault(); q('userMsg').textContent='Creando…';
