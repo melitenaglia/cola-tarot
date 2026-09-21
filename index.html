@@ -150,11 +150,21 @@ Confirmo mi lugar en la cola.`;
         selectedServiceId = activeServices[0]?.id || null;
         if (activeServices[0]) {
           const s = activeServices[0];
-          box.innerHTML = `<div class="list-item"><strong>${s.name}</strong><div class="meta">${s.duration_minutes ? s.duration_minutes+' min' : ''}${s.price_cents != null ? ' · '+(s.price_cents/100).toFixed(0)+' €' : ''}</div></div>`;
+          const details = [];
+          if (s.included_with_entry) details.push('Incluida con la entrada');
+          if (!s.included_with_entry && s.duration_minutes) details.push(s.duration_minutes + ' min');
+          if (!s.included_with_entry && s.price_cents != null) details.push((s.price_cents/100).toFixed(0) + ' €');
+          box.innerHTML = `<div class="list-item"><strong>${s.name}</strong>${details.length ? '<div class="meta">'+details.join(' · ')+'</div>' : ''}</div>`;
         }
       } else {
         box.innerHTML = '<label>Elegí tu lectura<select id="serviceSelect"><option value="">Seleccionar…</option>' +
-          activeServices.map(s => `<option value="${s.id}">${s.name} · ${s.duration_minutes || ''} min · ${(s.price_cents/100).toFixed(0)} €</option>`).join('') +
+          activeServices.map(s => {
+            const details = [];
+            if (s.included_with_entry) details.push('Incluida con la entrada');
+            if (!s.included_with_entry && s.duration_minutes) details.push(s.duration_minutes + ' min');
+            if (!s.included_with_entry && s.price_cents != null) details.push((s.price_cents/100).toFixed(0) + ' €');
+            return `<option value="${s.id}">${s.name}${details.length ? ' · '+details.join(' · ') : ''}</option>`;
+          }).join('') +
           '</select></label>';
         document.getElementById('serviceSelect').addEventListener('change', e => selectedServiceId = e.target.value || null);
       }
