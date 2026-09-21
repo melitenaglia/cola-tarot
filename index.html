@@ -4,13 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Eventos · Soy Amor Universal 111</title>
-  <link rel="stylesheet" href="./styles.css?v=20260921-8">
+  <link rel="stylesheet" href="./styles.css?v=20260921-9">
 </head>
 <body>
   <main class="container">
     <section class="hero">
       <h1 class="brand">Soy Amor Universal 111</h1>
-      <p class="sub">Eventos, lecturas y lista de espera</p>
+      <p id="publicSubtitle" class="sub hidden"></p>
     </section>
 
     <section id="activeEventCard" class="card hidden">
@@ -130,6 +130,17 @@ Confirmo mi lugar en la lista de espera.`;
     async function loadSettings() {
       const { data } = await db.from('app_settings').select('*').eq('id',1).maybeSingle();
       settings = data || {};
+      if (settings.brand_name) {
+        document.querySelector('.brand').textContent = settings.brand_name;
+      }
+      const subtitle = document.getElementById('publicSubtitle');
+      if (settings.public_subtitle) {
+        subtitle.textContent = settings.public_subtitle;
+        subtitle.classList.remove('hidden');
+      } else {
+        subtitle.textContent = '';
+        subtitle.classList.add('hidden');
+      }
       const links = document.getElementById('socialLinks');
       if (settings.instagram_url) links.insertAdjacentHTML('beforeend', `<a class="btn btn-secondary" href="${settings.instagram_url}" target="_blank" rel="noopener">Instagram</a>`);
       if (settings.website_url) links.insertAdjacentHTML('beforeend', `<a class="btn btn-secondary" href="${settings.website_url}" target="_blank" rel="noopener">Web</a>`);
@@ -196,25 +207,15 @@ Confirmo mi lugar en la lista de espera.`;
       const { data } = await db.from('services').select('*').eq('event_id',eventId).eq('active',true).order('sort_order');
       activeServices = data || [];
       const box = document.getElementById('serviceBox');
+
       if (activeServices.length <= 1) {
         selectedServiceId = activeServices[0]?.id || null;
-        if (activeServices[0]) {
-          const s = activeServices[0];
-          const details = [];
-          if (s.included_with_entry) details.push('Incluida con la entrada');
-          if (!s.included_with_entry && s.duration_minutes) details.push(s.duration_minutes + ' min');
-          if (!s.included_with_entry && s.price_cents != null) details.push((s.price_cents/100).toFixed(0) + ' €');
-          box.innerHTML = `<div class="list-item"><strong>${s.name}</strong>${details.length ? '<div class="meta">'+details.join(' · ')+'</div>' : ''}</div>`;
-        }
+        box.innerHTML = activeServices[0]
+          ? `<div class="list-item service-only"><strong>${activeServices[0].name}</strong></div>`
+          : '';
       } else {
         box.innerHTML = '<label>Elegí tu lectura<select id="serviceSelect"><option value="">Seleccionar…</option>' +
-          activeServices.map(s => {
-            const details = [];
-            if (s.included_with_entry) details.push('Incluida con la entrada');
-            if (!s.included_with_entry && s.duration_minutes) details.push(s.duration_minutes + ' min');
-            if (!s.included_with_entry && s.price_cents != null) details.push((s.price_cents/100).toFixed(0) + ' €');
-            return `<option value="${s.id}">${s.name}${details.length ? ' · '+details.join(' · ') : ''}</option>`;
-          }).join('') +
+          activeServices.map(s => `<option value="${s.id}">${s.name}</option>`).join('') +
           '</select></label>';
         document.getElementById('serviceSelect').addEventListener('change', e => selectedServiceId = e.target.value || null);
       }
