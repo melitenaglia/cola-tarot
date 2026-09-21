@@ -1,383 +1,207 @@
 <!doctype html>
 <html lang="es">
-
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-
-  <title>Pregunta al Tarot · Cola de espera</title>
-
-  <style>
-    * {
-      box-sizing: border-box;
-    }
-
-    body {
-      margin: 0;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
-
-      font-family: Arial, Helvetica, sans-serif;
-      background: #f6f2ed;
-      color: #222;
-      text-align: center;
-    }
-
-    .card {
-      width: min(100%, 420px);
-      background: white;
-      padding: 32px 24px;
-      border-radius: 18px;
-      box-shadow: 0 6px 24px rgba(0, 0, 0, .10);
-    }
-
-    h1 {
-      margin: 0 0 8px;
-      font-size: 27px;
-    }
-
-    .fecha {
-      margin-bottom: 24px;
-      font-size: 15px;
-      opacity: .65;
-    }
-
-    #intro {
-      line-height: 1.5;
-      margin-bottom: 20px;
-    }
-
-    .label-turno {
-      margin-top: 24px;
-      margin-bottom: 5px;
-      font-size: 14px;
-      opacity: .65;
-    }
-
-    #turno {
-      min-height: 52px;
-      margin-bottom: 24px;
-
-      font-size: 38px;
-      line-height: 1.2;
-      font-weight: 700;
-    }
-
-    button {
-      width: 100%;
-      border: 0;
-      border-radius: 12px;
-      padding: 16px;
-
-      font-size: 18px;
-      font-weight: 700;
-
-      cursor: pointer;
-    }
-
-    button:disabled {
-      opacity: .55;
-      cursor: default;
-    }
-
-    #status {
-      min-height: 20px;
-      margin-top: 16px;
-      font-size: 14px;
-      line-height: 1.4;
-    }
-
-    .nota {
-      margin-top: 22px;
-      font-size: 12px;
-      line-height: 1.4;
-      opacity: .6;
-    }
-  </style>
+  <title>Eventos · Soy Amor Universal</title>
+  <link rel="stylesheet" href="./styles.css">
 </head>
-
 <body>
+  <main class="container">
+    <section class="hero">
+      <h1 class="brand">🔮 Soy Amor Universal</h1>
+      <p class="sub">Eventos, lecturas y cola de espera</p>
+    </section>
 
-  <main class="card">
+    <section id="activeEventCard" class="card hidden">
+      <div class="topbar">
+        <div>
+          <span class="pill pill-open">COLA ABIERTA</span>
+          <h2 id="activeName" class="event-title"></h2>
+        </div>
+      </div>
+      <div id="activeMeta" class="meta"></div>
+      <div id="serviceBox" class="stack" style="margin-top:18px"></div>
 
-    <h1>🔮 Pregunta al Tarot</h1>
+      <div id="turnArea" class="hidden">
+        <div class="note">Tu turno es</div>
+        <div id="turnCode" class="big-turn"></div>
+        <button id="whatsappBtn" class="btn btn-primary" style="width:100%">CONFIRMAR POR WHATSAPP</button>
+        <p class="note">Tu lugar queda confirmado cuando enviás el mensaje de WhatsApp.</p>
+      </div>
 
-    <div class="fecha">
-      25 de septiembre de 2026
-    </div>
+      <button id="takeTurnBtn" class="btn btn-primary" style="width:100%;margin-top:18px">SACAR TURNO</button>
+      <div id="queueStatus" class="note" style="margin-top:12px"></div>
+    </section>
 
-    <p id="intro">
-      Sacá tu turno y confirmalo enviando el mensaje por WhatsApp.
-    </p>
+    <section id="noActive" class="card">
+      <h2>Ahora mismo no hay una cola abierta</h2>
+      <p class="meta">Podés volver más tarde o mirar los próximos eventos.</p>
+    </section>
 
-    <div
-      id="labelTurno"
-      class="label-turno"
-      style="display:none;"
-    >
-      Tu turno es
-    </div>
+    <section class="card">
+      <h2>Próximos eventos</h2>
+      <div id="upcomingList" class="list">
+        <div class="note">Cargando…</div>
+      </div>
+    </section>
 
-    <div id="turno"></div>
-
-    <button
-      id="boton"
-      type="button"
-      onclick="obtenerTurno()"
-    >
-      SACAR TURNO
-    </button>
-
-    <div id="status"></div>
-
-    <div class="nota">
-      Tu turno queda guardado en este dispositivo para que no saques otro
-      accidentalmente.
-    </div>
-
+    <section class="card">
+      <h2>Seguime y conocé más</h2>
+      <div class="links" id="socialLinks"></div>
+      <div id="reviewBlock" class="hidden" style="margin-top:14px">
+        <a id="reviewLink" class="btn btn-secondary" target="_blank" rel="noopener">⭐ Dejar una reseña en Google</a>
+      </div>
+    </section>
   </main>
 
-
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="./config.js"></script>
   <script>
+    const { createClient } = supabase;
+    const db = createClient(SAU_CONFIG.supabaseUrl, SAU_CONFIG.supabaseKey);
+    let activeEvent = null;
+    let activeServices = [];
+    let selectedServiceId = null;
+    let settings = null;
 
-    /* =========================================================
-       CONFIGURACIÓN DEL EVENTO
-       ========================================================= */
-
-    // Fecha/código que aparecerá dentro del número de turno.
-    // 25/09/2026 → 250926
-    const EVENTO = "250926";
-
-    // Pegá acá la URL del webhook "QR Cola Tarot" de Make.
-    const MAKE_WEBHOOK =
-      "https://hook.eu1.make.com/nbkjhblot3e1tbj674rlvbs7lswjwh5m";
-
-    // Número de WhatsApp de Sofi:
-    // código de país + número, SIN +, espacios ni guiones.
-    // Ejemplo: 34612345678
-    const WHATSAPP_SOFI =
-      "34658104746";
-
-    /* ========================================================= */
-
-
-    /*
-      Al incluir EVENTO en la clave, cada fecha funciona
-      independientemente.
-
-      Ejemplo:
-      turno_tarot_250926
-      turno_tarot_181026
-    */
-    const CLAVE_TURNO =
-      "turno_tarot_" + EVENTO;
-
-
-    /*
-      Convierte:
-      1  → 250926-T001
-      7  → 250926-T007
-      23 → 250926-T023
-    */
-    function formatoTurno(numero) {
-
-      return (
-        EVENTO +
-        "-T" +
-        String(numero).padStart(3, "0")
-      );
+    function fmtDate(iso) {
+      const d = new Date(iso);
+      return new Intl.DateTimeFormat('es-ES',{dateStyle:'medium',timeStyle:'short'}).format(d);
     }
 
-
-    function mostrarTurno(numero) {
-
-      const turno = formatoTurno(numero);
-
-      document.getElementById("labelTurno").style.display =
-        "block";
-
-      document.getElementById("turno").textContent =
-        turno;
-
-      document.getElementById("boton").textContent =
-        "ABRIR WHATSAPP";
+    function getDeviceToken() {
+      let token = localStorage.getItem('sau_device_token');
+      if (!token) {
+        token = (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)+Date.now());
+        localStorage.setItem('sau_device_token', token);
+      }
+      return token;
     }
 
+    function eventTurnKey(eventId){ return 'sau_turn_' + eventId; }
 
-    function abrirWhatsApp(numero) {
+    function buildWhatsAppUrl(turnCode) {
+      const phone = (settings?.whatsapp_number || '').replace(/\D/g,'');
+      const msg = `🔮 Hola! Quiero sumarme a la cola de espera para hacer mi *Pregunta al Tarot*.
 
-      const turno = formatoTurno(numero);
+*Mi turno es ${turnCode}*
 
-      const mensaje =
-`🔮 Hola! Quiero sumarme a la cola de espera para hacer mi *Pregunta al Tarot*.
-
-*Mi turno es ${turno}*
-
-Mi nombre es:`;
-
-      const url =
-        "https://wa.me/" +
-        WHATSAPP_SOFI +
-        "?text=" +
-        encodeURIComponent(mensaje);
-
-      window.location.href = url;
+Confirmo mi lugar en la cola.`;
+      return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
     }
 
+    async function loadSettings() {
+      const { data } = await db.from('app_settings').select('*').eq('id',1).maybeSingle();
+      settings = data || {};
+      const links = document.getElementById('socialLinks');
+      if (settings.instagram_url) links.insertAdjacentHTML('beforeend', `<a class="btn btn-secondary" href="${settings.instagram_url}" target="_blank" rel="noopener">Instagram</a>`);
+      if (settings.website_url) links.insertAdjacentHTML('beforeend', `<a class="btn btn-secondary" href="${settings.website_url}" target="_blank" rel="noopener">Web</a>`);
+      if (settings.google_review_url) {
+        document.getElementById('reviewBlock').classList.remove('hidden');
+        document.getElementById('reviewLink').href = settings.google_review_url;
+      }
+    }
 
-    async function obtenerTurno() {
-
-      /*
-        PRIMERO miramos si este navegador ya tiene
-        un turno para ESTE evento.
-      */
-      const guardado =
-        localStorage.getItem(CLAVE_TURNO);
-
-
-      /*
-        Si ya existe, NO llamamos a Make.
-        Reutilizamos exactamente el mismo turno.
-      */
-      if (guardado) {
-
-        mostrarTurno(guardado);
-
-        abrirWhatsApp(guardado);
-
+    async function loadEvents() {
+      const now = new Date().toISOString();
+      const { data: events, error } = await db
+        .from('events')
+        .select('*')
+        .eq('status','published')
+        .order('starts_at',{ascending:true});
+      if (error) {
+        document.getElementById('upcomingList').innerHTML = '<div class="note">No pudimos cargar los eventos.</div>';
         return;
       }
 
+      activeEvent = (events || []).find(e => e.queue_status === 'open');
+      if (activeEvent) {
+        document.getElementById('activeEventCard').classList.remove('hidden');
+        document.getElementById('noActive').classList.add('hidden');
+        document.getElementById('activeName').textContent = activeEvent.name;
+        document.getElementById('activeMeta').innerHTML =
+          `${fmtDate(activeEvent.starts_at)} · ${activeEvent.location_name || ''}` +
+          (activeEvent.location_address ? `<br>${activeEvent.location_address}` : '') +
+          (activeEvent.maps_url ? `<br><a target="_blank" rel="noopener" href="${activeEvent.maps_url}">Ver ubicación</a>` : '');
+        await loadServices(activeEvent.id);
+        restoreTurn();
+      }
 
-      const boton =
-        document.getElementById("boton");
-
-      const status =
-        document.getElementById("status");
-
-
-      boton.disabled = true;
-
-      status.textContent =
-        "Asignando tu turno…";
-
-
-      try {
-
-        /*
-          Pedimos a Make solamente el siguiente número.
-
-          El timestamp evita que el navegador reutilice
-          accidentalmente una respuesta anterior en caché.
-        */
-        const separador =
-          MAKE_WEBHOOK.includes("?") ? "&" : "?";
-
-        const urlMake =
-          MAKE_WEBHOOK +
-          separador +
-          "_=" +
-          Date.now();
-
-
-        const respuesta =
-          await fetch(urlMake, {
-            method: "GET",
-            cache: "no-store"
-          });
-
-
-        if (!respuesta.ok) {
-
-          throw new Error(
-            "Make respondió con error"
-          );
-        }
-
-
-        /*
-          Make debería devolver solamente:
-          1
-          2
-          3
-          etc.
-        */
-        const texto =
-          await respuesta.text();
-
-        const numero =
-          parseInt(texto.trim(), 10);
-
-
-        if (
-          !Number.isInteger(numero) ||
-          numero < 1
-        ) {
-
-          throw new Error(
-            "El turno recibido no es válido"
-          );
-        }
-
-
-        /*
-          Guardamos el número ANTES de abrir WhatsApp.
-
-          Así, aunque la persona vuelva a la página
-          o la recargue, seguirá teniendo el mismo.
-        */
-        localStorage.setItem(
-          CLAVE_TURNO,
-          String(numero)
-        );
-
-
-        mostrarTurno(numero);
-
-
-        status.textContent =
-          "Turno asignado. Abriendo WhatsApp…";
-
-
-        abrirWhatsApp(numero);
-
-
-      } catch (error) {
-
-        console.error(error);
-
-        status.textContent =
-          "No pudimos asignar tu turno. Tocá nuevamente para intentar.";
-
-        boton.disabled = false;
+      const upcoming = (events || []).filter(e => new Date(e.starts_at) >= new Date() && (!activeEvent || e.id !== activeEvent.id));
+      const list = document.getElementById('upcomingList');
+      if (!upcoming.length) {
+        list.innerHTML = '<div class="note">No hay próximos eventos publicados por ahora.</div>';
+      } else {
+        list.innerHTML = upcoming.map(e => `
+          <div class="list-item">
+            <strong>${e.name}</strong>
+            <div class="meta">${fmtDate(e.starts_at)}${e.location_name ? ' · '+e.location_name : ''}</div>
+            ${e.maps_url ? `<a href="${e.maps_url}" target="_blank" rel="noopener">Ver ubicación</a>` : ''}
+          </div>`).join('');
       }
     }
 
-
-    /*
-      Al cargar la página comprobamos si este navegador
-      ya tiene un turno para este evento.
-    */
-    const turnoExistente =
-      localStorage.getItem(CLAVE_TURNO);
-
-
-    if (turnoExistente) {
-
-      mostrarTurno(turnoExistente);
-
-      document.getElementById("intro").textContent =
-        "Ya tenés un turno asignado. Podés volver a abrir WhatsApp sin sacar otro.";
-
-      document.getElementById("status").textContent =
-        "Tu lugar en la cola conserva el mismo número.";
+    async function loadServices(eventId) {
+      const { data } = await db.from('services').select('*').eq('event_id',eventId).eq('active',true).order('sort_order');
+      activeServices = data || [];
+      const box = document.getElementById('serviceBox');
+      if (activeServices.length <= 1) {
+        selectedServiceId = activeServices[0]?.id || null;
+        if (activeServices[0]) {
+          const s = activeServices[0];
+          box.innerHTML = `<div class="list-item"><strong>${s.name}</strong><div class="meta">${s.duration_minutes ? s.duration_minutes+' min' : ''}${s.price_cents != null ? ' · '+(s.price_cents/100).toFixed(0)+' €' : ''}</div></div>`;
+        }
+      } else {
+        box.innerHTML = '<label>Elegí tu lectura<select id="serviceSelect"><option value="">Seleccionar…</option>' +
+          activeServices.map(s => `<option value="${s.id}">${s.name} · ${s.duration_minutes || ''} min · ${(s.price_cents/100).toFixed(0)} €</option>`).join('') +
+          '</select></label>';
+        document.getElementById('serviceSelect').addEventListener('change', e => selectedServiceId = e.target.value || null);
+      }
     }
 
+    function showTurn(code) {
+      document.getElementById('turnCode').textContent = code;
+      document.getElementById('turnArea').classList.remove('hidden');
+      document.getElementById('takeTurnBtn').classList.add('hidden');
+      document.getElementById('whatsappBtn').onclick = () => { window.location.href = buildWhatsAppUrl(code); };
+    }
+
+    function restoreTurn() {
+      if (!activeEvent) return;
+      const code = localStorage.getItem(eventTurnKey(activeEvent.id));
+      if (code) showTurn(code);
+    }
+
+    document.getElementById('takeTurnBtn').addEventListener('click', async () => {
+      if (!activeEvent) return;
+      if (activeServices.length > 1 && !selectedServiceId) {
+        document.getElementById('queueStatus').textContent = 'Elegí una lectura antes de sacar turno.';
+        return;
+      }
+      const btn = document.getElementById('takeTurnBtn');
+      btn.disabled = true;
+      document.getElementById('queueStatus').textContent = 'Asignando tu turno…';
+      const { data, error } = await db.rpc('issue_turn', {
+        p_event_id: activeEvent.id,
+        p_device_token: getDeviceToken(),
+        p_service_id: selectedServiceId || null
+      });
+      btn.disabled = false;
+      if (error || !data?.length) {
+        document.getElementById('queueStatus').textContent = error?.message || 'No pudimos asignar el turno.';
+        return;
+      }
+      const code = data[0].code;
+      localStorage.setItem(eventTurnKey(activeEvent.id), code);
+      document.getElementById('queueStatus').textContent = 'Turno asignado.';
+      showTurn(code);
+    });
+
+    (async () => {
+      await loadSettings();
+      await loadEvents();
+    })();
   </script>
-
 </body>
-
 </html>
