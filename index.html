@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Eventos · Soy Amor Universal 111</title>
-  <link rel="stylesheet" href="./styles.css?v=20260921-6">
+  <link rel="stylesheet" href="./styles.css?v=20260921-7">
 </head>
 <body>
   <main class="container">
@@ -25,10 +25,11 @@
 
       <div id="turnArea" class="hidden">
         <div id="turnDate" class="small" style="opacity:.45;margin-top:12px;letter-spacing:.08em"></div>
-        <div class="note">Tu turno es</div>
+        <div id="turnLabel" class="turn-label">Tu turno será</div>
         <div id="turnCode" class="big-turn"></div>
-        <button id="whatsappBtn" class="btn btn-primary" style="width:100%">CONFIRMAR POR WHATSAPP</button>
-        <p id="whatsappHint" class="note whatsapp-hint"><strong>ÚLTIMO PASO:</strong> confirmá tu turno enviando el mensaje por WhatsApp.</p>
+        <div id="turnAssignedMsg" class="turn-assigned hidden">✓ Turno asignado</div>
+        <button id="whatsappBtn" class="btn btn-primary" style="width:100%">💬 CONFIRMAR POR WHATSAPP</button>
+        <p id="whatsappHint" class="note whatsapp-hint"><strong>ÚLTIMO PASO:</strong> enviá el mensaje para confirmar tu turno.</p>
       </div>
 
       <button id="takeTurnBtn" class="btn btn-primary" style="width:100%;margin-top:18px">SACAR TURNO</button>
@@ -196,20 +197,28 @@ Confirmo mi lugar en la lista de espera.`;
 
       const btn = document.getElementById('whatsappBtn');
       const hint = document.getElementById('whatsappHint');
+      const label = document.getElementById('turnLabel');
+      const assigned = document.getElementById('turnAssignedMsg');
       const wasOpened = activeEvent && localStorage.getItem(whatsappOpenedKey(activeEvent.id)) === '1';
 
       if (wasOpened) {
-        btn.textContent = 'ABRIR WHATSAPP DE NUEVO';
-        hint.innerHTML = '<strong>Si ya tocaste Enviar en WhatsApp, listo.</strong> Si no, abrilo de nuevo y enviá el mensaje.';
+        label.textContent = 'Tu turno';
+        assigned.classList.remove('hidden');
+        btn.textContent = '💬 ABRIR WHATSAPP DE NUEVO';
+        hint.innerHTML = '<strong>Estate atenta/o a tu móvil.</strong> Te avisaremos cuando sea tu turno.';
       } else {
-        btn.textContent = 'CONFIRMAR POR WHATSAPP';
-        hint.innerHTML = '<strong>ÚLTIMO PASO:</strong> confirmá tu turno enviando el mensaje por WhatsApp.';
+        label.textContent = 'Tu turno será';
+        assigned.classList.add('hidden');
+        btn.textContent = '💬 CONFIRMAR POR WHATSAPP';
+        hint.innerHTML = '<strong>ÚLTIMO PASO:</strong> enviá el mensaje para confirmar tu turno.';
       }
 
       btn.onclick = () => {
         if (activeEvent) localStorage.setItem(whatsappOpenedKey(activeEvent.id), '1');
-        btn.textContent = 'ABRIR WHATSAPP DE NUEVO';
-        hint.innerHTML = '<strong>Si ya tocaste Enviar en WhatsApp, listo.</strong> No tenés que hacer nada más.';
+        label.textContent = 'Tu turno';
+        assigned.classList.remove('hidden');
+        btn.textContent = '💬 ABRIR WHATSAPP DE NUEVO';
+        hint.innerHTML = '<strong>Estate atenta/o a tu móvil.</strong> Te avisaremos cuando sea tu turno.';
         window.location.href = buildWhatsAppUrl(code);
       };
     }
@@ -241,7 +250,7 @@ Confirmo mi lugar en la lista de espera.`;
       }
       const code = data[0].code;
       localStorage.setItem(eventTurnKey(activeEvent.id), code);
-      document.getElementById('queueStatus').textContent = 'Turno asignado.';
+      document.getElementById('queueStatus').textContent = '';
       showTurn(code);
     });
 
@@ -252,8 +261,12 @@ Confirmo mi lugar en la lista de espera.`;
       if (localStorage.getItem(whatsappOpenedKey(activeEvent.id)) === '1') {
         const btn = document.getElementById('whatsappBtn');
         const hint = document.getElementById('whatsappHint');
-        btn.textContent = 'ABRIR WHATSAPP DE NUEVO';
-        hint.textContent = 'Si ya tocaste Enviar en WhatsApp, listo. Si no, abrilo de nuevo y enviá el mensaje.';
+        const label = document.getElementById('turnLabel');
+        const assigned = document.getElementById('turnAssignedMsg');
+        label.textContent = 'Tu turno';
+        assigned.classList.remove('hidden');
+        btn.textContent = '💬 ABRIR WHATSAPP DE NUEVO';
+        hint.innerHTML = '<strong>Estate atenta/o a tu móvil.</strong> Te avisaremos cuando sea tu turno.';
       }
     });
 
