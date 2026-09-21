@@ -36,6 +36,7 @@
         <button class="tab" data-tab="new">Nuevo evento</button>
         <button class="tab" data-tab="settings">Configuración</button>
         <button class="tab" data-tab="users">Usuarios</button>
+        <button class="tab" data-tab="trash">Papelera</button>
       </div>
 
       <section id="tab-events" class="tabpane">
@@ -203,6 +204,18 @@
             <div id="userMsg" class="note"></div>
           </form>
         </div>
+      <section id="tab-trash" class="tabpane hidden">
+        <div class="card">
+          <div class="topbar">
+            <div>
+              <h2 style="margin:0">Papelera</h2>
+              <div class="meta">Los eventos eliminados quedan acá hasta que los borres definitivamente.</div>
+            </div>
+          </div>
+          <div id="trashList" class="list"></div>
+        </div>
+      </section>
+
       </section>
     </section>
   </main>
@@ -254,6 +267,7 @@
       if(name==='events') loadEvents();
       if(name==='settings') loadSettings();
       if(name==='users') loadUsers();
+      if(name==='trash') loadTrash();
     }
 
     const menuBtn=q('menuToggleBtn');
@@ -303,6 +317,7 @@
       if(profile.role!=='admin'){
         document.querySelector('[data-tab="users"]').classList.add('hidden');
         document.querySelector('[data-tab="settings"]').classList.add('hidden');
+        document.querySelector('[data-tab="trash"]').classList.add('hidden');
       }
       loadEvents();
     }
@@ -319,7 +334,10 @@
     q('logoutBtn').addEventListener('click',async()=>{await db.auth.signOut();location.reload();});
 
     async function loadEvents(){
-      const { data, error } = await db.from('events').select('*, services(*), turns(id,number,code,status,created_at,updated_at,service_id)').order('starts_at',{ascending:false});
+      const { data, error } = await db.from('events')
+        .select('*, services(*), turns(id,number,code,status,created_at,updated_at,service_id)')
+        .is('deleted_at',null)
+        .order('starts_at',{ascending:false});
       const box=q('eventsList');
       if(error){box.innerHTML='<div class="note">'+error.message+'</div>';return;}
       cachedEvents=data||[];
@@ -381,18 +399,13 @@
       const e=cachedEvents.find(x=>x.id===id);
       if(!e)return;
 
-      if((e.turns||[]).length>0 || e.current_number>0){
-        alert('Este evento ya tiene turnos emitidos, por eso no se puede eliminar: necesitamos conservar el histórico.\n\nSi querés, cerrá la lista y dejalo como histórico.');
-        return;
-      }
-
       const ok=confirm(
-        '¿Eliminar "' + e.name + '"?\n\n' +
-        'Se eliminará el evento y sus servicios. Esta acción no se puede deshacer.'
+        '¿Enviar "' + e.name + '" a la papelera?\n\n' +
+        'Podrás restaurarlo o eliminarlo definitivamente después. Los turnos de prueba también quedarán dentro de ese evento.'
       );
       if(!ok)return;
 
-      const { error } = await db.rpc('delete_event_if_empty',{p_event_id:id});
+      const { error } = await db.rpc('trash_event',{p_event_id:id});
       if(error){
         alert(error.message);
         return;
@@ -615,6 +628,75 @@
       q('editMsg').textContent='Cambios guardados.';
       showTab('events');
     });
+
+    async function loadTrash(){
+      const box=q('trashList');
+      const { data,error }=await db
+        .from('events')
+        .select('*, turns(id)')
+        .not('deleted_at','is',null)
+        .order('deleted_at',{ascending:false});
+
+      if(error){
+        box.innerHTML='<div class="note">'+error.message+'</div>';
+        return;
+      }
+
+      const items=data||[];
+      if(!items.length){
+        box.innerHTML='<div class="note">La papelera está vacía.</div>';
+        return;
+      }
+
+      box.innerHTML=items.map(e=>`
+        <div class="list-item">
+          <div class="topbar" style="margin:0">
+            <div>
+              <strong>${e.name}</strong>
+              <div class="meta">${fmt(e.starts_at)}${e.location_name?' · '+e.location_name:''}</div>
+              <div class="small">Código ${e.event_code} · ${(e.turns||[]).length} turno(s)</div>
+            </div>
+            <div class="actions">
+              <button class="btn btn-secondary" onclick="restoreEvent('${e.id}')">RESTAURAR</button>
+              <button class="btn btn-danger" onclick="permanentDeleteEvent('${e.id}','${String(e.name).replace(/'/g,"&#39;")}')">ELIMINAR DEFINITIVAMENTE</button>
+            </div>
+          </div>
+        </div>`).join('');
+    }
+
+    window.restoreEvent=async(id)=>{
+      const { error }=await db.rpc('restore_event',{p_event_id:id});
+      if(error){
+        alert(error.message);
+        return;
+      }
+      await loadTrash();
+    };
+
+    window.permanentDeleteEvent=async(id,name)=>{
+      const first=confirm(
+        'Vas a eliminar definitivamente "' + name + '".\n\n' +
+        'Esto también borra todos sus turnos y servicios. No se puede deshacer. ¿Continuar?'
+      );
+      if(!first)return;
+
+      const typed=prompt('Para confirmar, escribí ELIMINAR');
+      if(typed===null)return;
+      if(typed.trim().toUpperCase()!=='ELIMINAR'){
+        alert('No se eliminó. La confirmación no coincide.');
+        return;
+      }
+
+      const { error }=await db.rpc('permanently_delete_event',{
+        p_event_id:id,
+        p_confirmation:'ELIMINAR'
+      });
+      if(error){
+        alert(error.message);
+        return;
+      }
+      await loadTrash();
+    };
 
     async function loadSettings(){
       const { data }=await db.from('app_settings').select('*').eq('id',1).maybeSingle();
