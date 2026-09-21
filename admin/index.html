@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Administración · Soy Amor Universal 111</title>
-  <link rel="stylesheet" href="../styles.css?v=20260921-9">
+  <link rel="stylesheet" href="../styles.css?v=20260921-11">
 </head>
 <body>
   <main class="container">
@@ -162,6 +162,28 @@
             <label>Instagram<input id="setInstagram" type="url"></label>
             <label>Web<input id="setWebsite" type="url"></label>
             <label>Link para reseña de Google<input id="setReview" type="url"></label>
+
+            <hr>
+            <h3>Mensajes para clientes</h3>
+            <label>Instrucción antes de WhatsApp
+              <textarea id="setWhatsappInstruction" rows="2"></textarea>
+            </label>
+            <label>Mensaje mientras espera
+              <textarea id="setWaitingMessage" rows="2"></textarea>
+            </label>
+            <label>Título al finalizar
+              <input id="setCompletedTitle">
+            </label>
+            <label>Mensaje al finalizar
+              <textarea id="setCompletedMessage" rows="3"></textarea>
+            </label>
+            <label>Texto para pedir reseña
+              <textarea id="setReviewPrompt" rows="2"></textarea>
+            </label>
+            <label>Mensaje cuando la lista del día ya cerró
+              <textarea id="setClosedMessage" rows="3"></textarea>
+            </label>
+
             <button class="btn btn-primary" type="submit">GUARDAR</button>
             <div id="settingsMsg" class="note"></div>
           </form>
@@ -712,6 +734,12 @@
       q('setInstagram').value=data.instagram_url||'';
       q('setWebsite').value=data.website_url||'';
       q('setReview').value=data.google_review_url||'';
+      q('setWhatsappInstruction').value=data.whatsapp_instruction||'ÚLTIMO PASO: enviá el mensaje para confirmar tu turno.';
+      q('setWaitingMessage').value=data.waiting_message||'Estate atent@ a tu móvil. Te avisaré cuando sea tu turno.';
+      q('setCompletedTitle').value=data.completed_title||'Gracias por compartir este encuentro';
+      q('setCompletedMessage').value=data.completed_message||'Espero que esta lectura te acompañe y te aporte un poquito de luz ✦';
+      q('setReviewPrompt').value=data.review_prompt||'Si te gustó la experiencia, podés dejar una reseña.';
+      q('setClosedMessage').value=data.closed_message||'Gracias por compartir este encuentro ✦ Podés seguir a Soy Amor Universal 111 o conocer más en la web.';
     }
     q('settingsForm').addEventListener('submit',async e=>{
       e.preventDefault(); q('settingsMsg').textContent='Guardando…';
@@ -721,7 +749,13 @@
         whatsapp_number:q('setWhatsapp').value.trim(),
         instagram_url:q('setInstagram').value.trim()||null,
         website_url:q('setWebsite').value.trim()||null,
-        google_review_url:q('setReview').value.trim()||null
+        google_review_url:q('setReview').value.trim()||null,
+        whatsapp_instruction:q('setWhatsappInstruction').value.trim()||null,
+        waiting_message:q('setWaitingMessage').value.trim()||null,
+        completed_title:q('setCompletedTitle').value.trim()||null,
+        completed_message:q('setCompletedMessage').value.trim()||null,
+        review_prompt:q('setReviewPrompt').value.trim()||null,
+        closed_message:q('setClosedMessage').value.trim()||null
       }).eq('id',1);
       q('settingsMsg').textContent=error?error.message:'Guardado.';
     });
