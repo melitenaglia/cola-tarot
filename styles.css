@@ -584,3 +584,39 @@ hr{
     margin-top:11px;
   }
 }
+
+
+/* Flujo de confirmación del turno */
+.turn-label{
+  text-align:center;
+  color:var(--muted);
+  font-size:14px;
+  margin-top:2px;
+}
+.turn-assigned{
+  width:max-content;
+  max-width:100%;
+  margin:0 auto 14px;
+  padding:7px 12px;
+  border-radius:7px;
+  background:var(--gold-soft);
+  border:1px solid #E7D4B1;
+  color:var(--ink);
+  font-size:13px;
+  font-weight:600;
+  text-align:center;
+}
+#turnArea .big-turn{
+  text-align:center;
+}
+#whatsappBtn{
+  font-weight:700;
+}
+
+@media(max-width:720px){
+  .turn-label{font-size:13px}
+  .turn-assigned{
+    margin-bottom:12px;
+    font-size:12px;
+  }
+}
