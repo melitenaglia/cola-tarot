@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Eventos · Soy Amor Universal 111</title>
-  <link rel="stylesheet" href="./styles.css?v=20260921-5">
+  <link rel="stylesheet" href="./styles.css?v=20260921-6">
 </head>
 <body>
   <main class="container">
@@ -28,7 +28,7 @@
         <div class="note">Tu turno es</div>
         <div id="turnCode" class="big-turn"></div>
         <button id="whatsappBtn" class="btn btn-primary" style="width:100%">CONFIRMAR POR WHATSAPP</button>
-        <p id="whatsappHint" class="note">Tu lugar queda confirmado cuando enviás el mensaje de WhatsApp.</p>
+        <p id="whatsappHint" class="note whatsapp-hint"><strong>ÚLTIMO PASO:</strong> confirmá tu turno enviando el mensaje por WhatsApp.</p>
       </div>
 
       <button id="takeTurnBtn" class="btn btn-primary" style="width:100%;margin-top:18px">SACAR TURNO</button>
@@ -200,16 +200,16 @@ Confirmo mi lugar en la lista de espera.`;
 
       if (wasOpened) {
         btn.textContent = 'ABRIR WHATSAPP DE NUEVO';
-        hint.textContent = 'Si ya tocaste Enviar en WhatsApp, listo. Si no, abrilo de nuevo y enviá el mensaje.';
+        hint.innerHTML = '<strong>Si ya tocaste Enviar en WhatsApp, listo.</strong> Si no, abrilo de nuevo y enviá el mensaje.';
       } else {
         btn.textContent = 'CONFIRMAR POR WHATSAPP';
-        hint.textContent = 'Tu lugar queda confirmado cuando enviás el mensaje de WhatsApp.';
+        hint.innerHTML = '<strong>ÚLTIMO PASO:</strong> confirmá tu turno enviando el mensaje por WhatsApp.';
       }
 
       btn.onclick = () => {
         if (activeEvent) localStorage.setItem(whatsappOpenedKey(activeEvent.id), '1');
         btn.textContent = 'ABRIR WHATSAPP DE NUEVO';
-        hint.textContent = 'Cuando vuelvas, si ya tocaste Enviar en WhatsApp, no tenés que hacer nada más.';
+        hint.innerHTML = '<strong>Si ya tocaste Enviar en WhatsApp, listo.</strong> No tenés que hacer nada más.';
         window.location.href = buildWhatsAppUrl(code);
       };
     }
