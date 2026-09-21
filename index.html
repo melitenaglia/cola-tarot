@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Eventos · Soy Amor Universal 111</title>
-  <link rel="stylesheet" href="./styles.css?v=20260921-7">
+  <link rel="stylesheet" href="./styles.css?v=20260921-8">
 </head>
 <body>
   <main class="container">
@@ -30,6 +30,13 @@
         <div id="turnAssignedMsg" class="turn-assigned hidden">✓ Turno asignado</div>
         <button id="whatsappBtn" class="btn btn-primary" style="width:100%">💬 CONFIRMAR POR WHATSAPP</button>
         <p id="whatsappHint" class="note whatsapp-hint"><strong>ÚLTIMO PASO:</strong> enviá el mensaje para confirmar tu turno.</p>
+        <div id="queueProgress" class="queue-progress hidden">
+          <div class="queue-progress-current">
+            <span>Turno actual</span>
+            <strong id="currentTurnNow">—</strong>
+          </div>
+          <div id="peopleAheadText" class="queue-progress-text"></div>
+        </div>
       </div>
 
       <button id="takeTurnBtn" class="btn btn-primary" style="width:100%;margin-top:18px">SACAR TURNO</button>
@@ -66,6 +73,7 @@
     let activeServices = [];
     let selectedServiceId = null;
     let settings = null;
+    let queueRefreshTimer = null;
 
     function fmtDate(iso) {
       const d = new Date(iso);
@@ -94,6 +102,16 @@
     function displayDateFromCode(dateCode) {
       if (!/^\d{6}$/.test(dateCode)) return '';
       return dateCode.slice(0,2) + '/' + dateCode.slice(2,4) + '/' + dateCode.slice(4,6);
+    }
+
+    function turnDisplay(number) {
+      return number ? 'T' + String(number).padStart(3,'0') : '—';
+    }
+
+    function localDateKey(value) {
+      const d = value instanceof Date ? value : new Date(value);
+      const pad = n => String(n).padStart(2,'0');
+      return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
     }
 
     function buildWhatsAppUrl(fullCode) {
@@ -144,6 +162,20 @@ Confirmo mi lugar en la lista de espera.`;
           (activeEvent.maps_url ? `<br><a target="_blank" rel="noopener" href="${activeEvent.maps_url}">Ver ubicación</a>` : '');
         await loadServices(activeEvent.id);
         restoreTurn();
+      } else {
+        const todayKey = localDateKey(new Date());
+        const todayEvent = (events || [])
+          .filter(e => localDateKey(e.starts_at) === todayKey)
+          .sort((a,b) => new Date(b.starts_at) - new Date(a.starts_at))[0];
+
+        const noActive = document.getElementById('noActive');
+        if (todayEvent && new Date() >= new Date(todayEvent.starts_at)) {
+          noActive.innerHTML = '<h2>La lista de espera de hoy ya cerró</h2><p class="meta">Gracias por compartir este encuentro ✦<br>Podés seguir a Soy Amor Universal 111 o conocer más en la web.</p>';
+        } else if (todayEvent) {
+          noActive.innerHTML = '<h2>La lista de espera todavía no está abierta</h2><p class="meta">Volvé a escanear el QR cuando comience el evento.</p>';
+        } else {
+          noActive.innerHTML = '<h2>Ahora mismo no hay una lista de espera abierta</h2><p class="meta">Podés volver más tarde o mirar los próximos eventos.</p>';
+        }
       }
 
       const upcoming = (events || []).filter(e => new Date(e.starts_at) >= new Date() && (!activeEvent || e.id !== activeEvent.id));
@@ -199,16 +231,20 @@ Confirmo mi lugar en la lista de espera.`;
       const hint = document.getElementById('whatsappHint');
       const label = document.getElementById('turnLabel');
       const assigned = document.getElementById('turnAssignedMsg');
+      const progress = document.getElementById('queueProgress');
       const wasOpened = activeEvent && localStorage.getItem(whatsappOpenedKey(activeEvent.id)) === '1';
 
       if (wasOpened) {
         label.textContent = 'Tu turno';
         assigned.classList.remove('hidden');
+        progress.classList.remove('hidden');
         btn.textContent = '💬 ABRIR WHATSAPP DE NUEVO';
-        hint.innerHTML = '<strong>Estate atenta/o a tu móvil.</strong> Te avisaremos cuando sea tu turno.';
+        hint.innerHTML = '<strong>Estate atent@ a tu móvil.</strong> Te avisaré cuando sea tu turno.';
+        startQueueRefresh();
       } else {
         label.textContent = 'Tu turno será';
         assigned.classList.add('hidden');
+        progress.classList.add('hidden');
         btn.textContent = '💬 CONFIRMAR POR WHATSAPP';
         hint.innerHTML = '<strong>ÚLTIMO PASO:</strong> enviá el mensaje para confirmar tu turno.';
       }
@@ -217,10 +253,46 @@ Confirmo mi lugar en la lista de espera.`;
         if (activeEvent) localStorage.setItem(whatsappOpenedKey(activeEvent.id), '1');
         label.textContent = 'Tu turno';
         assigned.classList.remove('hidden');
+        progress.classList.remove('hidden');
         btn.textContent = '💬 ABRIR WHATSAPP DE NUEVO';
-        hint.innerHTML = '<strong>Estate atenta/o a tu móvil.</strong> Te avisaremos cuando sea tu turno.';
+        hint.innerHTML = '<strong>Estate atent@ a tu móvil.</strong> Te avisaré cuando sea tu turno.';
+        startQueueRefresh();
         window.location.href = buildWhatsAppUrl(code);
       };
+    }
+
+    async function updateQueuePosition() {
+      if (!activeEvent) return;
+      const progress = document.getElementById('queueProgress');
+      if (!progress || progress.classList.contains('hidden')) return;
+
+      const { data, error } = await db.rpc('get_queue_position', {
+        p_event_id: activeEvent.id,
+        p_device_token: getDeviceToken()
+      });
+      if (error || !data?.length) return;
+
+      const row = data[0];
+      document.getElementById('currentTurnNow').textContent = turnDisplay(row.current_turn_number);
+
+      const text = document.getElementById('peopleAheadText');
+      if (row.user_status === 'done') {
+        text.innerHTML = '<strong>Tu turno ya fue atendido.</strong>';
+      } else if (row.people_ahead === 0) {
+        text.innerHTML = '<strong>Sos el próximo turno.</strong>';
+      } else if (row.people_ahead === 1) {
+        text.innerHTML = '<strong>Hay 1 persona antes que vos.</strong>';
+      } else if (row.people_ahead != null) {
+        text.innerHTML = '<strong>Hay ' + row.people_ahead + ' personas antes que vos.</strong>';
+      } else {
+        text.textContent = '';
+      }
+    }
+
+    function startQueueRefresh() {
+      updateQueuePosition();
+      if (queueRefreshTimer) clearInterval(queueRefreshTimer);
+      queueRefreshTimer = setInterval(updateQueuePosition, 8000);
     }
 
     function restoreTurn() {
@@ -263,10 +335,13 @@ Confirmo mi lugar en la lista de espera.`;
         const hint = document.getElementById('whatsappHint');
         const label = document.getElementById('turnLabel');
         const assigned = document.getElementById('turnAssignedMsg');
+        const progress = document.getElementById('queueProgress');
         label.textContent = 'Tu turno';
         assigned.classList.remove('hidden');
+        progress.classList.remove('hidden');
         btn.textContent = '💬 ABRIR WHATSAPP DE NUEVO';
-        hint.innerHTML = '<strong>Estate atenta/o a tu móvil.</strong> Te avisaremos cuando sea tu turno.';
+        hint.innerHTML = '<strong>Estate atent@ a tu móvil.</strong> Te avisaré cuando sea tu turno.';
+        startQueueRefresh();
       }
     });
 
