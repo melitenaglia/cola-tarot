@@ -59,13 +59,51 @@
             </div>
             <hr>
             <h3>Servicio inicial</h3>
-            <div class="grid grid-2">
-              <label>Servicio<input id="svcName" value="Pregunta al Tarot" required></label>
-              <label>Duración (min)<input id="svcDuration" type="number" min="1" value="5"></label>
-              <label>Precio (€)<input id="svcPrice" type="number" min="0" step="0.01" value="5"></label>
+            <label>Servicio<input id="svcName" value="Pregunta al Tarot" required></label>
+            <label style="display:flex;align-items:center;gap:10px"><input id="svcIncluded" type="checkbox" checked style="width:auto"> Incluido con la entrada</label>
+            <div class="grid grid-2" id="newPaidFields">
+              <label>Duración (min, opcional)<input id="svcDuration" type="number" min="1"></label>
+              <label>Precio (€ , opcional)<input id="svcPrice" type="number" min="0" step="0.01"></label>
             </div>
             <button class="btn btn-primary" type="submit">GUARDAR EVENTO</button>
             <div id="eventMsg" class="note"></div>
+          </form>
+        </div>
+      </section>
+
+      <section id="tab-edit" class="tabpane hidden">
+        <div class="card">
+          <div class="topbar">
+            <h2 style="margin:0">Editar evento</h2>
+            <button id="cancelEditBtn" class="btn btn-secondary" type="button">Cancelar</button>
+          </div>
+          <form id="editEventForm" class="stack">
+            <input id="editId" type="hidden">
+            <input id="editServiceId" type="hidden">
+            <div class="grid grid-2">
+              <label>Nombre del evento<input id="editName" required></label>
+              <label>Fecha<input id="editDate" type="date" required></label>
+              <label>Hora inicio<input id="editStart" type="time" required></label>
+              <label>Hora fin<input id="editEnd" type="time" required></label>
+              <label>Lugar<input id="editLocation"></label>
+              <label>Dirección<input id="editAddress"></label>
+            </div>
+            <label>Link Google Maps<input id="editMaps" type="url"></label>
+            <label>Descripción<textarea id="editDescription"></textarea></label>
+            <div class="grid grid-2">
+              <label>Máximo de turnos (opcional)<input id="editMax" type="number" min="1"></label>
+              <label>Mostrar en próximos eventos<select id="editUpcoming"><option value="true">Sí</option><option value="false">No</option></select></label>
+            </div>
+            <hr>
+            <h3>Servicio principal</h3>
+            <label>Servicio<input id="editSvcName" required></label>
+            <label style="display:flex;align-items:center;gap:10px"><input id="editSvcIncluded" type="checkbox" style="width:auto"> Incluido con la entrada</label>
+            <div class="grid grid-2" id="editPaidFields">
+              <label>Duración (min, opcional)<input id="editSvcDuration" type="number" min="1"></label>
+              <label>Precio (€ , opcional)<input id="editSvcPrice" type="number" min="0" step="0.01"></label>
+            </div>
+            <button class="btn btn-primary" type="submit">GUARDAR CAMBIOS</button>
+            <div id="editMsg" class="note"></div>
           </form>
         </div>
       </section>
@@ -113,6 +151,7 @@
     const db = createClient(SAU_CONFIG.supabaseUrl, SAU_CONFIG.supabaseKey);
     let session = null;
     let profile = null;
+    let cachedEvents = [];
 
     const q = id => document.getElementById(id);
     const localDT = (date,time) => new Date(date+'T'+time+':00').toISOString();
@@ -121,6 +160,21 @@
       return d+m+y.slice(2);
     };
     const fmt = iso => new Intl.DateTimeFormat('es-ES',{dateStyle:'medium',timeStyle:'short'}).format(new Date(iso));
+    const localParts = iso => {
+      const d = new Date(iso);
+      const pad = n => String(n).padStart(2,'0');
+      return {
+        date: d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()),
+        time: pad(d.getHours())+':'+pad(d.getMinutes())
+      };
+    };
+    const serviceLabel = s => {
+      const parts = [];
+      if (s.included_with_entry) parts.push('Incluida con la entrada');
+      if (!s.included_with_entry && s.duration_minutes) parts.push(s.duration_minutes+' min');
+      if (!s.included_with_entry && s.price_cents != null) parts.push((s.price_cents/100).toFixed(0)+' €');
+      return s.name + (parts.length ? ' · '+parts.join(' · ') : '');
+    };
 
     function showTab(name){
       document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
@@ -132,6 +186,16 @@
     }
 
     document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
+    q('cancelEditBtn').addEventListener('click',()=>showTab('events'));
+
+    function syncPaidFields(checkboxId, containerId){
+      const checked=q(checkboxId).checked;
+      q(containerId).style.opacity=checked?'.45':'1';
+      q(containerId).querySelectorAll('input').forEach(i=>i.disabled=checked);
+    }
+    q('svcIncluded').addEventListener('change',()=>syncPaidFields('svcIncluded','newPaidFields'));
+    q('editSvcIncluded').addEventListener('change',()=>syncPaidFields('editSvcIncluded','editPaidFields'));
+    syncPaidFields('svcIncluded','newPaidFields');
 
     async function ensureAuth(){
       const { data } = await db.auth.getSession();
@@ -168,8 +232,9 @@
       const { data, error } = await db.from('events').select('*, services(*)').order('starts_at',{ascending:false});
       const box=q('eventsList');
       if(error){box.innerHTML='<div class="note">'+error.message+'</div>';return;}
-      if(!data?.length){box.innerHTML='<div class="card"><p class="note">Todavía no hay eventos.</p></div>';return;}
-      box.innerHTML=data.map(e=>`
+      cachedEvents=data||[];
+      if(!cachedEvents.length){box.innerHTML='<div class="card"><p class="note">Todavía no hay eventos.</p></div>';return;}
+      box.innerHTML=cachedEvents.map(e=>`
         <div class="card">
           <div class="topbar">
             <div>
@@ -177,6 +242,7 @@
               <h2 style="margin:10px 0 5px">${e.name}</h2>
               <div class="meta">${fmt(e.starts_at)}${e.location_name?' · '+e.location_name:''}<br>Código: ${e.event_code}</div>
             </div>
+            <button class="btn btn-secondary" onclick="editEvent('${e.id}')">EDITAR</button>
           </div>
           <div class="grid grid-2">
             <div class="stat">Último turno<strong>${e.current_number? e.event_code+'-T'+String(e.current_number).padStart(3,'0'):'—'}</strong></div>
@@ -187,9 +253,35 @@
             <button class="btn btn-secondary" onclick="moveServing('${e.id}',-1)">← Anterior</button>
             <button class="btn btn-secondary" onclick="moveServing('${e.id}',1)">Siguiente →</button>
           </div>
-          ${e.services?.length ? '<div class="note" style="margin-top:12px">'+e.services.map(s=>s.name+' · '+(s.duration_minutes||'')+' min · '+((s.price_cents||0)/100)+' €').join('<br>')+'</div>':''}
+          ${e.services?.length ? '<div class="note" style="margin-top:12px">'+e.services.map(serviceLabel).join('<br>')+'</div>':''}
         </div>`).join('');
     }
+
+    window.editEvent=id=>{
+      const e=cachedEvents.find(x=>x.id===id);
+      if(!e)return;
+      const start=localParts(e.starts_at), end=localParts(e.ends_at);
+      const svc=(e.services||[]).sort((a,b)=>(a.sort_order||10)-(b.sort_order||10))[0]||null;
+      q('editId').value=e.id;
+      q('editName').value=e.name||'';
+      q('editDate').value=start.date;
+      q('editStart').value=start.time;
+      q('editEnd').value=end.time;
+      q('editLocation').value=e.location_name||'';
+      q('editAddress').value=e.location_address||'';
+      q('editMaps').value=e.maps_url||'';
+      q('editDescription').value=e.description||'';
+      q('editMax').value=e.max_turns||'';
+      q('editUpcoming').value=String(e.show_upcoming);
+      q('editServiceId').value=svc?.id||'';
+      q('editSvcName').value=svc?.name||'Pregunta al Tarot';
+      q('editSvcIncluded').checked=!!svc?.included_with_entry;
+      q('editSvcDuration').value=svc?.duration_minutes||'';
+      q('editSvcPrice').value=svc?.price_cents!=null ? svc.price_cents/100 : '';
+      syncPaidFields('editSvcIncluded','editPaidFields');
+      q('editMsg').textContent='';
+      showTab('edit');
+    };
 
     window.toggleQueue=async(id,open)=>{
       const { error } = await db.rpc('set_event_queue',{p_event_id:id,p_open:open});
@@ -223,11 +315,14 @@
       };
       const { data:event, error } = await db.from('events').insert(payload).select().single();
       if(error){q('eventMsg').textContent=error.message;return;}
+      const included=q('svcIncluded').checked;
       const svc={
         event_id:event.id,
         name:q('svcName').value.trim(),
-        duration_minutes:q('svcDuration').value?Number(q('svcDuration').value):null,
-        price_cents:q('svcPrice').value?Math.round(Number(q('svcPrice').value)*100):0,
+        duration_minutes:included?null:(q('svcDuration').value?Number(q('svcDuration').value):null),
+        price_cents:included?null:(q('svcPrice').value?Math.round(Number(q('svcPrice').value)*100):null),
+        included_with_entry:included,
+        description:included?'Incluida con la entrada':null,
         sort_order:10,
         active:true
       };
@@ -235,7 +330,48 @@
       if(svcErr){q('eventMsg').textContent='Evento creado, pero falló el servicio: '+svcErr.message;return;}
       q('eventMsg').textContent='Evento creado.';
       e.target.reset();
-      q('svcName').value='Pregunta al Tarot';q('svcDuration').value='5';q('svcPrice').value='5';
+      q('svcName').value='Pregunta al Tarot';q('svcIncluded').checked=true;syncPaidFields('svcIncluded','newPaidFields');
+      showTab('events');
+    });
+
+    q('editEventForm').addEventListener('submit',async e=>{
+      e.preventDefault();
+      q('editMsg').textContent='Guardando…';
+      const id=q('editId').value;
+      const date=q('editDate').value;
+      const eventPayload={
+        name:q('editName').value.trim(),
+        event_code:eventCode(date),
+        description:q('editDescription').value.trim()||null,
+        starts_at:localDT(date,q('editStart').value),
+        ends_at:localDT(date,q('editEnd').value),
+        location_name:q('editLocation').value.trim()||null,
+        location_address:q('editAddress').value.trim()||null,
+        maps_url:q('editMaps').value.trim()||null,
+        show_upcoming:q('editUpcoming').value==='true',
+        max_turns:q('editMax').value?Number(q('editMax').value):null
+      };
+      const { error }=await db.from('events').update(eventPayload).eq('id',id);
+      if(error){q('editMsg').textContent=error.message;return;}
+
+      const included=q('editSvcIncluded').checked;
+      const servicePayload={
+        name:q('editSvcName').value.trim(),
+        duration_minutes:included?null:(q('editSvcDuration').value?Number(q('editSvcDuration').value):null),
+        price_cents:included?null:(q('editSvcPrice').value?Math.round(Number(q('editSvcPrice').value)*100):null),
+        included_with_entry:included,
+        description:included?'Incluida con la entrada':null,
+        active:true
+      };
+      const serviceId=q('editServiceId').value;
+      let svcError=null;
+      if(serviceId){
+        ({error:svcError}=await db.from('services').update(servicePayload).eq('id',serviceId));
+      }else{
+        ({error:svcError}=await db.from('services').insert({...servicePayload,event_id:id,sort_order:10}));
+      }
+      if(svcError){q('editMsg').textContent='Evento guardado, pero falló el servicio: '+svcError.message;return;}
+      q('editMsg').textContent='Cambios guardados.';
       showTab('events');
     });
 
