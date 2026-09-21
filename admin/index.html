@@ -20,15 +20,18 @@
     </section>
 
     <section id="app" class="hidden">
-      <div class="topbar">
+      <div class="topbar admin-header">
         <div>
           <h1 style="margin:0">Panel de eventos</h1>
           <div id="whoami" class="small"></div>
         </div>
-        <button id="logoutBtn" class="btn btn-secondary">Salir</button>
+        <div class="admin-header-actions">
+          <button id="menuToggleBtn" class="btn btn-secondary menu-toggle" type="button" aria-expanded="false" aria-controls="adminTabs">☰</button>
+          <button id="logoutBtn" class="btn btn-secondary">Salir</button>
+        </div>
       </div>
 
-      <div class="tabs">
+      <div id="adminTabs" class="tabs">
         <button class="tab active" data-tab="events">Eventos</button>
         <button class="tab" data-tab="new">Nuevo evento</button>
         <button class="tab" data-tab="settings">Configuración</button>
@@ -50,7 +53,7 @@
             <button id="backFromTurnsBtn" class="btn btn-secondary" type="button">Volver</button>
           </div>
 
-          <div class="grid grid-2" style="margin-top:16px">
+          <div class="grid grid-2 metrics-grid" style="margin-top:16px">
             <div class="stat">Pendientes<strong id="waitingCount">0</strong></div>
             <div class="stat">Atendidos<strong id="doneCount">0</strong></div>
           </div>
@@ -253,7 +256,23 @@
       if(name==='users') loadUsers();
     }
 
-    document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
+    const menuBtn=q('menuToggleBtn');
+    const adminTabs=q('adminTabs');
+
+    menuBtn.addEventListener('click',()=>{
+      const open=adminTabs.classList.toggle('mobile-open');
+      menuBtn.setAttribute('aria-expanded',String(open));
+      menuBtn.textContent=open?'×':'☰';
+    });
+
+    document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{
+      showTab(b.dataset.tab);
+      if(window.matchMedia('(max-width:720px)').matches){
+        adminTabs.classList.remove('mobile-open');
+        menuBtn.setAttribute('aria-expanded','false');
+        menuBtn.textContent='☰';
+      }
+    }));
     q('cancelEditBtn').addEventListener('click',()=>showTab('events'));
     q('backFromTurnsBtn').addEventListener('click',()=>showTab('events'));
     q('cancelUserEditBtn').addEventListener('click',()=>{
@@ -322,7 +341,7 @@
                 : ''}
             </div>
           </div>
-          <div class="grid grid-2">
+          <div class="grid grid-2 metrics-grid">
             <div class="stat">Turnos emitidos<strong>${(e.turns||[]).length}</strong></div>
             <div class="stat">Pendientes<strong>${(e.turns||[]).filter(t=>['issued','called','in_service'].includes(t.status)).length}</strong></div>
           </div>
