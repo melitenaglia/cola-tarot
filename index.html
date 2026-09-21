@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Eventos · Soy Amor Universal 111</title>
-  <link rel="stylesheet" href="./styles.css?v=20260921-10">
+  <link rel="stylesheet" href="./styles.css?v=20260921-11">
 </head>
 <body>
   <main class="container">
@@ -42,9 +42,9 @@
 
         <div id="completedTurnState" class="completed-turn hidden">
           <div class="completed-turn-mark">✓</div>
-          <h2>Gracias por compartir este encuentro</h2>
-          <p>Espero que esta lectura te acompañe y te aporte un poquito de luz ✦</p>
-          <p class="note">Si te gustó la experiencia, podés dejar una reseña.</p>
+          <h2 id="completedTitle">Gracias por compartir este encuentro</h2>
+          <p id="completedMessage">Espero que esta lectura te acompañe y te aporte un poquito de luz ✦</p>
+          <p id="reviewPrompt" class="note">Si te gustó la experiencia, podés dejar una reseña.</p>
           <a id="completedReviewBtn" class="btn btn-primary hidden" target="_blank" rel="noopener">★ DEJAR UNA RESEÑA</a>
         </div>
       </div>
@@ -151,6 +151,13 @@ Confirmo mi lugar en la lista de espera.`;
         subtitle.textContent = '';
         subtitle.classList.add('hidden');
       }
+      document.getElementById('completedTitle').textContent =
+        settings.completed_title || 'Gracias por compartir este encuentro';
+      document.getElementById('completedMessage').textContent =
+        settings.completed_message || 'Espero que esta lectura te acompañe y te aporte un poquito de luz ✦';
+      document.getElementById('reviewPrompt').textContent =
+        settings.review_prompt || 'Si te gustó la experiencia, podés dejar una reseña.';
+
       const links = document.getElementById('socialLinks');
       if (settings.instagram_url) links.insertAdjacentHTML('beforeend', `<a class="btn btn-secondary" href="${settings.instagram_url}" target="_blank" rel="noopener">Instagram</a>`);
       if (settings.website_url) links.insertAdjacentHTML('beforeend', `<a class="btn btn-secondary" href="${settings.website_url}" target="_blank" rel="noopener">Web</a>`);
@@ -194,7 +201,9 @@ Confirmo mi lugar en la lista de espera.`;
 
         const noActive = document.getElementById('noActive');
         if (todayEvent && new Date() >= new Date(todayEvent.starts_at)) {
-          noActive.innerHTML = '<h2>La lista de espera de hoy ya cerró</h2><p class="meta">Gracias por compartir este encuentro ✦<br>Podés seguir a Soy Amor Universal 111 o conocer más en la web.</p>';
+          noActive.innerHTML = '<h2>La lista de espera de hoy ya cerró</h2><p id="closedMessagePublic" class="meta"></p>';
+          document.getElementById('closedMessagePublic').textContent =
+            settings?.closed_message || 'Gracias por compartir este encuentro ✦ Podés seguir a Soy Amor Universal 111 o conocer más en la web.';
         } else if (todayEvent) {
           noActive.innerHTML = '<h2>La lista de espera todavía no está abierta</h2><p class="meta">Volvé a escanear el QR cuando comience el evento.</p>';
         } else {
@@ -255,14 +264,14 @@ Confirmo mi lugar en la lista de espera.`;
         assigned.classList.remove('hidden');
         progress.classList.remove('hidden');
         btn.textContent = '💬 ABRIR WHATSAPP DE NUEVO';
-        hint.innerHTML = '<strong>Estate atent@ a tu móvil.</strong> Te avisaré cuando sea tu turno.';
+        hint.textContent = settings?.waiting_message || 'Estate atent@ a tu móvil. Te avisaré cuando sea tu turno.';
         startQueueRefresh();
       } else {
         label.textContent = 'Tu turno será';
         assigned.classList.add('hidden');
         progress.classList.add('hidden');
         btn.textContent = '💬 CONFIRMAR POR WHATSAPP';
-        hint.innerHTML = '<strong>ÚLTIMO PASO:</strong> enviá el mensaje para confirmar tu turno.';
+        hint.textContent = settings?.whatsapp_instruction || 'ÚLTIMO PASO: enviá el mensaje para confirmar tu turno.';
       }
 
       btn.onclick = () => {
@@ -271,7 +280,7 @@ Confirmo mi lugar en la lista de espera.`;
         assigned.classList.remove('hidden');
         progress.classList.remove('hidden');
         btn.textContent = '💬 ABRIR WHATSAPP DE NUEVO';
-        hint.innerHTML = '<strong>Estate atent@ a tu móvil.</strong> Te avisaré cuando sea tu turno.';
+        hint.textContent = settings?.waiting_message || 'Estate atent@ a tu móvil. Te avisaré cuando sea tu turno.';
         startQueueRefresh();
         window.location.href = buildWhatsAppUrl(code);
       };
@@ -371,7 +380,7 @@ Confirmo mi lugar en la lista de espera.`;
         assigned.classList.remove('hidden');
         progress.classList.remove('hidden');
         btn.textContent = '💬 ABRIR WHATSAPP DE NUEVO';
-        hint.innerHTML = '<strong>Estate atent@ a tu móvil.</strong> Te avisaré cuando sea tu turno.';
+        hint.textContent = settings?.waiting_message || 'Estate atent@ a tu móvil. Te avisaré cuando sea tu turno.';
         startQueueRefresh();
       }
     });
