@@ -242,7 +242,12 @@
               <h2 style="margin:10px 0 5px">${e.name}</h2>
               <div class="meta">${fmt(e.starts_at)}${e.location_name?' · '+e.location_name:''}<br>Código: ${e.event_code}</div>
             </div>
-            <button class="btn btn-secondary" onclick="editEvent('${e.id}')">EDITAR</button>
+            <div class="actions">
+              <button class="btn btn-secondary" onclick="editEvent('${e.id}')">EDITAR</button>
+              ${profile?.role==='admin' && e.current_number===0
+                ? `<button class="btn btn-danger" onclick="deleteEvent('${e.id}')">ELIMINAR</button>`
+                : ''}
+            </div>
           </div>
           <div class="grid grid-2">
             <div class="stat">Último turno<strong>${e.current_number? e.event_code+'-T'+String(e.current_number).padStart(3,'0'):'—'}</strong></div>
@@ -281,6 +286,23 @@
       syncPaidFields('editSvcIncluded','editPaidFields');
       q('editMsg').textContent='';
       showTab('edit');
+    };
+
+    window.deleteEvent=async(id)=>{
+      const e=cachedEvents.find(x=>x.id===id);
+      if(!e)return;
+      const ok=confirm(
+        '¿Eliminar "' + e.name + '"?\n\n' +
+        'Esta acción elimina el evento y sus servicios. Solo se permite si nunca se emitieron turnos.'
+      );
+      if(!ok)return;
+
+      const { error } = await db.rpc('delete_event_if_empty',{p_event_id:id});
+      if(error){
+        alert(error.message);
+        return;
+      }
+      await loadEvents();
     };
 
     window.toggleQueue=async(id,open)=>{
