@@ -232,6 +232,7 @@
     let currentTurns = [];
     let turnsRefreshTimer = null;
     let cachedUsers = [];
+    let cachedTrash = [];
 
     const q = id => document.getElementById(id);
     const localDT = (date,time) => new Date(date+'T'+time+':00').toISOString();
@@ -643,6 +644,7 @@
       }
 
       const items=data||[];
+      cachedTrash=items;
       if(!items.length){
         box.innerHTML='<div class="note">La papelera está vacía.</div>';
         return;
@@ -658,7 +660,7 @@
             </div>
             <div class="actions">
               <button class="btn btn-secondary" onclick="restoreEvent('${e.id}')">RESTAURAR</button>
-              <button class="btn btn-danger" onclick="permanentDeleteEvent('${e.id}','${String(e.name).replace(/'/g,"&#39;")}')">ELIMINAR DEFINITIVAMENTE</button>
+              <button class="btn btn-danger" onclick="permanentDeleteEvent('${e.id}')">ELIMINAR DEFINITIVAMENTE</button>
             </div>
           </div>
         </div>`).join('');
@@ -673,7 +675,9 @@
       await loadTrash();
     };
 
-    window.permanentDeleteEvent=async(id,name)=>{
+    window.permanentDeleteEvent=async(id)=>{
+      const e=cachedTrash.find(x=>x.id===id);
+      const name=e?.name||'este evento';
       const first=confirm(
         'Vas a eliminar definitivamente "' + name + '".\n\n' +
         'Esto también borra todos sus turnos y servicios. No se puede deshacer. ¿Continuar?'
