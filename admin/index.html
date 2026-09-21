@@ -1,0 +1,292 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Administración · Soy Amor Universal</title>
+  <link rel="stylesheet" href="../styles.css">
+</head>
+<body>
+  <main class="container">
+    <section id="loginCard" class="card login-card">
+      <h1>Administración</h1>
+      <p class="meta">Ingresá con tu email y contraseña.</p>
+      <form id="loginForm" class="stack">
+        <label>Email<input id="email" type="email" required></label>
+        <label>Contraseña<input id="password" type="password" required></label>
+        <button class="btn btn-primary" type="submit">ENTRAR</button>
+        <div id="loginMsg" class="note"></div>
+      </form>
+    </section>
+
+    <section id="app" class="hidden">
+      <div class="topbar">
+        <div>
+          <h1 style="margin:0">Panel de eventos</h1>
+          <div id="whoami" class="small"></div>
+        </div>
+        <button id="logoutBtn" class="btn btn-secondary">Salir</button>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active" data-tab="events">Eventos</button>
+        <button class="tab" data-tab="new">Nuevo evento</button>
+        <button class="tab" data-tab="settings">Configuración</button>
+        <button class="tab" data-tab="users">Usuarios</button>
+      </div>
+
+      <section id="tab-events" class="tabpane">
+        <div id="eventsList" class="list"></div>
+      </section>
+
+      <section id="tab-new" class="tabpane hidden">
+        <div class="card">
+          <h2>Nuevo evento</h2>
+          <form id="eventForm" class="stack">
+            <div class="grid grid-2">
+              <label>Nombre del evento<input id="evName" required placeholder="Tarot & Cocktail"></label>
+              <label>Fecha<input id="evDate" type="date" required></label>
+              <label>Hora inicio<input id="evStart" type="time" required></label>
+              <label>Hora fin<input id="evEnd" type="time" required></label>
+              <label>Lugar<input id="evLocation" placeholder="Tinta Roja"></label>
+              <label>Dirección<input id="evAddress"></label>
+            </div>
+            <label>Link Google Maps<input id="evMaps" type="url"></label>
+            <label>Descripción<textarea id="evDescription"></textarea></label>
+            <div class="grid grid-2">
+              <label>Máximo de turnos (opcional)<input id="evMax" type="number" min="1"></label>
+              <label>Mostrar en próximos eventos<select id="evUpcoming"><option value="true">Sí</option><option value="false">No</option></select></label>
+            </div>
+            <hr>
+            <h3>Servicio inicial</h3>
+            <div class="grid grid-2">
+              <label>Servicio<input id="svcName" value="Pregunta al Tarot" required></label>
+              <label>Duración (min)<input id="svcDuration" type="number" min="1" value="5"></label>
+              <label>Precio (€)<input id="svcPrice" type="number" min="0" step="0.01" value="5"></label>
+            </div>
+            <button class="btn btn-primary" type="submit">GUARDAR EVENTO</button>
+            <div id="eventMsg" class="note"></div>
+          </form>
+        </div>
+      </section>
+
+      <section id="tab-settings" class="tabpane hidden">
+        <div class="card">
+          <h2>Configuración pública</h2>
+          <form id="settingsForm" class="stack">
+            <label>Nombre / marca<input id="setBrand"></label>
+            <label>WhatsApp<input id="setWhatsapp" placeholder="346..."></label>
+            <label>Instagram<input id="setInstagram" type="url"></label>
+            <label>Web<input id="setWebsite" type="url"></label>
+            <label>Link para reseña de Google<input id="setReview" type="url"></label>
+            <button class="btn btn-primary" type="submit">GUARDAR</button>
+            <div id="settingsMsg" class="note"></div>
+          </form>
+        </div>
+      </section>
+
+      <section id="tab-users" class="tabpane hidden">
+        <div class="card">
+          <h2>Usuarios</h2>
+          <div id="usersList" class="list"></div>
+          <hr>
+          <h3>Crear usuario</h3>
+          <form id="userForm" class="stack">
+            <div class="grid grid-2">
+              <label>Nombre<input id="usrName" required></label>
+              <label>Email<input id="usrEmail" type="email" required></label>
+              <label>Contraseña<input id="usrPassword" type="password" minlength="8" required></label>
+              <label>Rol<select id="usrRole"><option value="staff">Staff</option><option value="admin">Admin</option></select></label>
+            </div>
+            <button class="btn btn-primary" type="submit">CREAR USUARIO</button>
+            <div id="userMsg" class="note"></div>
+          </form>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="../config.js"></script>
+  <script>
+    const { createClient } = supabase;
+    const db = createClient(SAU_CONFIG.supabaseUrl, SAU_CONFIG.supabaseKey);
+    let session = null;
+    let profile = null;
+
+    const q = id => document.getElementById(id);
+    const localDT = (date,time) => new Date(date+'T'+time+':00').toISOString();
+    const eventCode = date => {
+      const [y,m,d] = date.split('-');
+      return d+m+y.slice(2);
+    };
+    const fmt = iso => new Intl.DateTimeFormat('es-ES',{dateStyle:'medium',timeStyle:'short'}).format(new Date(iso));
+
+    function showTab(name){
+      document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
+      document.querySelectorAll('.tabpane').forEach(p=>p.classList.add('hidden'));
+      q('tab-'+name).classList.remove('hidden');
+      if(name==='events') loadEvents();
+      if(name==='settings') loadSettings();
+      if(name==='users') loadUsers();
+    }
+
+    document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>showTab(b.dataset.tab)));
+
+    async function ensureAuth(){
+      const { data } = await db.auth.getSession();
+      session = data.session;
+      if(!session){ q('loginCard').classList.remove('hidden'); q('app').classList.add('hidden'); return; }
+      const { data: p } = await db.from('profiles').select('*').eq('user_id',session.user.id).maybeSingle();
+      profile = p;
+      if(!profile || !profile.active || !['admin','staff'].includes(profile.role)){
+        await db.auth.signOut();
+        q('loginMsg').textContent='Tu usuario todavía no tiene acceso al panel.';
+        return;
+      }
+      q('loginCard').classList.add('hidden'); q('app').classList.remove('hidden');
+      q('whoami').textContent=(profile.display_name||session.user.email)+' · '+profile.role;
+      if(profile.role!=='admin'){
+        document.querySelector('[data-tab="users"]').classList.add('hidden');
+        document.querySelector('[data-tab="settings"]').classList.add('hidden');
+      }
+      loadEvents();
+    }
+
+    q('loginForm').addEventListener('submit',async e=>{
+      e.preventDefault();
+      q('loginMsg').textContent='Ingresando…';
+      const { error } = await db.auth.signInWithPassword({email:q('email').value.trim(),password:q('password').value});
+      if(error){ q('loginMsg').textContent=error.message; return; }
+      q('loginMsg').textContent='';
+      await ensureAuth();
+    });
+
+    q('logoutBtn').addEventListener('click',async()=>{await db.auth.signOut();location.reload();});
+
+    async function loadEvents(){
+      const { data, error } = await db.from('events').select('*, services(*)').order('starts_at',{ascending:false});
+      const box=q('eventsList');
+      if(error){box.innerHTML='<div class="note">'+error.message+'</div>';return;}
+      if(!data?.length){box.innerHTML='<div class="card"><p class="note">Todavía no hay eventos.</p></div>';return;}
+      box.innerHTML=data.map(e=>`
+        <div class="card">
+          <div class="topbar">
+            <div>
+              <span class="pill ${e.queue_status==='open'?'pill-open':'pill-closed'}">${e.queue_status==='open'?'COLA ABIERTA':'COLA CERRADA'}</span>
+              <h2 style="margin:10px 0 5px">${e.name}</h2>
+              <div class="meta">${fmt(e.starts_at)}${e.location_name?' · '+e.location_name:''}<br>Código: ${e.event_code}</div>
+            </div>
+          </div>
+          <div class="grid grid-2">
+            <div class="stat">Último turno<strong>${e.current_number? e.event_code+'-T'+String(e.current_number).padStart(3,'0'):'—'}</strong></div>
+            <div class="stat">Ahora atendiendo<strong>${e.now_serving_number? 'T'+String(e.now_serving_number).padStart(3,'0'):'—'}</strong></div>
+          </div>
+          <div class="actions" style="margin-top:14px">
+            <button class="btn ${e.queue_status==='open'?'btn-danger':'btn-ok'}" onclick="toggleQueue('${e.id}',${e.queue_status!=='open'})">${e.queue_status==='open'?'CERRAR COLA':'ABRIR COLA'}</button>
+            <button class="btn btn-secondary" onclick="moveServing('${e.id}',-1)">← Anterior</button>
+            <button class="btn btn-secondary" onclick="moveServing('${e.id}',1)">Siguiente →</button>
+          </div>
+          ${e.services?.length ? '<div class="note" style="margin-top:12px">'+e.services.map(s=>s.name+' · '+(s.duration_minutes||'')+' min · '+((s.price_cents||0)/100)+' €').join('<br>')+'</div>':''}
+        </div>`).join('');
+    }
+
+    window.toggleQueue=async(id,open)=>{
+      const { error } = await db.rpc('set_event_queue',{p_event_id:id,p_open:open});
+      if(error) alert(error.message);
+      await loadEvents();
+    };
+    window.moveServing=async(id,delta)=>{
+      const { error } = await db.rpc('move_now_serving',{p_event_id:id,p_delta:delta});
+      if(error) alert(error.message);
+      await loadEvents();
+    };
+
+    q('eventForm').addEventListener('submit',async e=>{
+      e.preventDefault();
+      q('eventMsg').textContent='Guardando…';
+      const date=q('evDate').value;
+      const payload={
+        name:q('evName').value.trim(),
+        event_code:eventCode(date),
+        description:q('evDescription').value.trim()||null,
+        starts_at:localDT(date,q('evStart').value),
+        ends_at:localDT(date,q('evEnd').value),
+        location_name:q('evLocation').value.trim()||null,
+        location_address:q('evAddress').value.trim()||null,
+        maps_url:q('evMaps').value.trim()||null,
+        status:'published',
+        queue_status:'closed',
+        show_upcoming:q('evUpcoming').value==='true',
+        max_turns:q('evMax').value?Number(q('evMax').value):null,
+        created_by:session.user.id
+      };
+      const { data:event, error } = await db.from('events').insert(payload).select().single();
+      if(error){q('eventMsg').textContent=error.message;return;}
+      const svc={
+        event_id:event.id,
+        name:q('svcName').value.trim(),
+        duration_minutes:q('svcDuration').value?Number(q('svcDuration').value):null,
+        price_cents:q('svcPrice').value?Math.round(Number(q('svcPrice').value)*100):0,
+        sort_order:10,
+        active:true
+      };
+      const { error:svcErr }=await db.from('services').insert(svc);
+      if(svcErr){q('eventMsg').textContent='Evento creado, pero falló el servicio: '+svcErr.message;return;}
+      q('eventMsg').textContent='Evento creado.';
+      e.target.reset();
+      q('svcName').value='Pregunta al Tarot';q('svcDuration').value='5';q('svcPrice').value='5';
+      showTab('events');
+    });
+
+    async function loadSettings(){
+      const { data }=await db.from('app_settings').select('*').eq('id',1).maybeSingle();
+      if(!data)return;
+      q('setBrand').value=data.brand_name||'';
+      q('setWhatsapp').value=data.whatsapp_number||'';
+      q('setInstagram').value=data.instagram_url||'';
+      q('setWebsite').value=data.website_url||'';
+      q('setReview').value=data.google_review_url||'';
+    }
+    q('settingsForm').addEventListener('submit',async e=>{
+      e.preventDefault(); q('settingsMsg').textContent='Guardando…';
+      const { error }=await db.from('app_settings').update({
+        brand_name:q('setBrand').value.trim(),
+        whatsapp_number:q('setWhatsapp').value.trim(),
+        instagram_url:q('setInstagram').value.trim()||null,
+        website_url:q('setWebsite').value.trim()||null,
+        google_review_url:q('setReview').value.trim()||null
+      }).eq('id',1);
+      q('settingsMsg').textContent=error?error.message:'Guardado.';
+    });
+
+    async function loadUsers(){
+      const { data,error }=await db.from('profiles').select('*').order('created_at');
+      const box=q('usersList');
+      if(error){box.innerHTML='<div class="note">'+error.message+'</div>';return;}
+      box.innerHTML=(data||[]).map(u=>`<div class="list-item"><strong>${u.display_name||'Usuario'}</strong><div class="meta">${u.role} · ${u.active?'activo':'inactivo'}</div></div>`).join('')||'<div class="note">No hay usuarios.</div>';
+    }
+
+    q('userForm').addEventListener('submit',async e=>{
+      e.preventDefault(); q('userMsg').textContent='Creando…';
+      const { data:{session:current} }=await db.auth.getSession();
+      const { data,error }=await db.functions.invoke('admin-create-user',{
+        body:{
+          email:q('usrEmail').value.trim(),
+          password:q('usrPassword').value,
+          display_name:q('usrName').value.trim(),
+          role:q('usrRole').value
+        },
+        headers:{Authorization:'Bearer '+current.access_token}
+      });
+      if(error){q('userMsg').textContent=error.message;return;}
+      if(data?.error){q('userMsg').textContent=data.error;return;}
+      q('userMsg').textContent='Usuario creado.';
+      e.target.reset();
+      await loadUsers();
+    });
+
+    ensureAuth();
+  </script>
+</body>
+</html>
