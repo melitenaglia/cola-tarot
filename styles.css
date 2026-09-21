@@ -313,3 +313,70 @@ hr{border:0;border-top:1px solid var(--line);margin:18px 0}
   .topbar{flex-wrap:wrap}
   .topbar>.actions{width:100%;justify-content:flex-start}
 }
+
+
+/* Ajustes compactos del admin */
+.admin-header-actions{display:flex;align-items:center;gap:8px}
+.menu-toggle{display:none;min-width:40px;padding-left:10px;padding-right:10px;font-size:18px;line-height:1}
+.metrics-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+
+@media(max-width:720px){
+  .admin-header{
+    align-items:center;
+  }
+  .admin-header h1{
+    font-size:22px;
+    line-height:1.15;
+  }
+  .admin-header-actions{
+    flex-shrink:0;
+  }
+  .menu-toggle{
+    display:inline-flex;
+  }
+  #adminTabs.tabs{
+    display:none;
+    grid-template-columns:1fr;
+    gap:4px;
+    margin:8px 0 12px;
+    padding:6px;
+    background:rgba(255,255,255,.55);
+    border:1px solid var(--line);
+    border-radius:8px;
+  }
+  #adminTabs.tabs.mobile-open{
+    display:grid;
+  }
+  #adminTabs .tab{
+    text-align:left;
+    background:transparent;
+    border:0;
+    border-radius:6px;
+    padding:9px 10px;
+  }
+  #adminTabs .tab.active{
+    background:rgba(18,32,65,.08);
+    color:var(--navy);
+  }
+  .metrics-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+    gap:8px !important;
+  }
+  .metrics-grid .stat{
+    min-width:0;
+    padding:10px 11px;
+  }
+  .metrics-grid .stat strong{
+    font-size:21px;
+  }
+}
+
+@media(max-width:380px){
+  .admin-header{
+    flex-wrap:nowrap;
+  }
+  .admin-header-actions{
+    width:auto;
+    margin-left:auto;
+  }
+}
