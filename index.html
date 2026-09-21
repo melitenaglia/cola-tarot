@@ -1,39 +1,69 @@
 <!doctype html>
 <html lang="es">
+
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+
   <title>Pregunta al Tarot · Cola de espera</title>
 
   <style>
+    * {
+      box-sizing: border-box;
+    }
+
     body {
       margin: 0;
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-family: Arial, sans-serif;
+      padding: 20px;
+
+      font-family: Arial, Helvetica, sans-serif;
       background: #f6f2ed;
+      color: #222;
       text-align: center;
     }
 
     .card {
-      width: min(88%, 420px);
+      width: min(100%, 420px);
       background: white;
       padding: 32px 24px;
       border-radius: 18px;
-      box-shadow: 0 6px 24px rgba(0,0,0,.10);
+      box-shadow: 0 6px 24px rgba(0, 0, 0, .10);
     }
 
     h1 {
-      margin-top: 0;
-      font-size: 26px;
+      margin: 0 0 8px;
+      font-size: 27px;
+    }
+
+    .fecha {
+      margin-bottom: 24px;
+      font-size: 15px;
+      opacity: .65;
+    }
+
+    #intro {
+      line-height: 1.5;
+      margin-bottom: 20px;
+    }
+
+    .label-turno {
+      margin-top: 24px;
+      margin-bottom: 5px;
+      font-size: 14px;
+      opacity: .65;
     }
 
     #turno {
-      font-size: 42px;
-      font-weight: bold;
-      margin: 24px 0;
+      min-height: 52px;
+      margin-bottom: 24px;
+
+      font-size: 38px;
+      line-height: 1.2;
+      font-weight: 700;
     }
 
     button {
@@ -41,134 +71,313 @@
       border: 0;
       border-radius: 12px;
       padding: 16px;
+
       font-size: 18px;
-      font-weight: bold;
+      font-weight: 700;
+
       cursor: pointer;
     }
 
+    button:disabled {
+      opacity: .55;
+      cursor: default;
+    }
+
     #status {
+      min-height: 20px;
       margin-top: 16px;
       font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .nota {
+      margin-top: 22px;
+      font-size: 12px;
+      line-height: 1.4;
+      opacity: .6;
     }
   </style>
 </head>
 
 <body>
 
-  <div class="card">
+  <main class="card">
+
     <h1>🔮 Pregunta al Tarot</h1>
+
+    <div class="fecha">
+      25 de septiembre de 2026
+    </div>
 
     <p id="intro">
       Sacá tu turno y confirmalo enviando el mensaje por WhatsApp.
     </p>
 
+    <div
+      id="labelTurno"
+      class="label-turno"
+      style="display:none;"
+    >
+      Tu turno es
+    </div>
+
     <div id="turno"></div>
 
-    <button id="boton" onclick="obtenerTurno()">
+    <button
+      id="boton"
+      type="button"
+      onclick="obtenerTurno()"
+    >
       SACAR TURNO
     </button>
 
     <div id="status"></div>
-  </div>
 
-<script>
-const MAKE_WEBHOOK =
-  "https://hook.eu1.make.com/nbkjhblot3e1tbj674rlvbs7lswjwh5m";
+    <div class="nota">
+      Tu turno queda guardado en este dispositivo para que no saques otro
+      accidentalmente.
+    </div>
 
-const WHATSAPP_SOFI = "34XXXXXXXXX";
+  </main>
 
-const CLAVE_TURNO = "turno_tarot_actual";
 
-function formatoTurno(numero) {
-  return "T" + String(numero).padStart(3, "0");
-}
+  <script>
 
-function abrirWhatsApp(numero) {
+    /* =========================================================
+       CONFIGURACIÓN DEL EVENTO
+       ========================================================= */
 
-  const turno = formatoTurno(numero);
+    // Fecha/código que aparecerá dentro del número de turno.
+    // 25/09/2026 → 250926
+    const EVENTO = "250926";
 
-  const mensaje =
+    // Pegá acá la URL del webhook "QR Cola Tarot" de Make.
+    const MAKE_WEBHOOK =
+      "PEGA_AQUI_TU_WEBHOOK_DE_MAKE";
+
+    // Número de WhatsApp de Sofi:
+    // código de país + número, SIN +, espacios ni guiones.
+    // Ejemplo: 34612345678
+    const WHATSAPP_SOFI =
+      "34XXXXXXXXX";
+
+    /* ========================================================= */
+
+
+    /*
+      Al incluir EVENTO en la clave, cada fecha funciona
+      independientemente.
+
+      Ejemplo:
+      turno_tarot_250926
+      turno_tarot_181026
+    */
+    const CLAVE_TURNO =
+      "turno_tarot_" + EVENTO;
+
+
+    /*
+      Convierte:
+      1  → 250926-T001
+      7  → 250926-T007
+      23 → 250926-T023
+    */
+    function formatoTurno(numero) {
+
+      return (
+        EVENTO +
+        "-T" +
+        String(numero).padStart(3, "0")
+      );
+    }
+
+
+    function mostrarTurno(numero) {
+
+      const turno = formatoTurno(numero);
+
+      document.getElementById("labelTurno").style.display =
+        "block";
+
+      document.getElementById("turno").textContent =
+        turno;
+
+      document.getElementById("boton").textContent =
+        "ABRIR WHATSAPP";
+    }
+
+
+    function abrirWhatsApp(numero) {
+
+      const turno = formatoTurno(numero);
+
+      const mensaje =
 `🔮 Hola! Quiero sumarme a la cola de espera para hacer mi *Pregunta al Tarot*.
 
 *Mi turno es ${turno}*
 
 Mi nombre es:`;
 
-  const url =
-    "https://wa.me/" +
-    WHATSAPP_SOFI +
-    "?text=" +
-    encodeURIComponent(mensaje);
+      const url =
+        "https://wa.me/" +
+        WHATSAPP_SOFI +
+        "?text=" +
+        encodeURIComponent(mensaje);
 
-  window.location.href = url;
-}
-
-async function obtenerTurno() {
-
-  const guardado = localStorage.getItem(CLAVE_TURNO);
-
-  if (guardado) {
-    mostrarTurno(guardado);
-    abrirWhatsApp(guardado);
-    return;
-  }
-
-  const boton = document.getElementById("boton");
-  const status = document.getElementById("status");
-
-  boton.disabled = true;
-  status.textContent = "Asignando tu turno…";
-
-  try {
-
-    const respuesta = await fetch(MAKE_WEBHOOK);
-
-    if (!respuesta.ok) {
-      throw new Error("Error al solicitar el turno");
+      window.location.href = url;
     }
 
-    const texto = await respuesta.text();
-    const numero = parseInt(texto.trim(), 10);
 
-    if (!numero) {
-      throw new Error("Turno inválido");
+    async function obtenerTurno() {
+
+      /*
+        PRIMERO miramos si este navegador ya tiene
+        un turno para ESTE evento.
+      */
+      const guardado =
+        localStorage.getItem(CLAVE_TURNO);
+
+
+      /*
+        Si ya existe, NO llamamos a Make.
+        Reutilizamos exactamente el mismo turno.
+      */
+      if (guardado) {
+
+        mostrarTurno(guardado);
+
+        abrirWhatsApp(guardado);
+
+        return;
+      }
+
+
+      const boton =
+        document.getElementById("boton");
+
+      const status =
+        document.getElementById("status");
+
+
+      boton.disabled = true;
+
+      status.textContent =
+        "Asignando tu turno…";
+
+
+      try {
+
+        /*
+          Pedimos a Make solamente el siguiente número.
+
+          El timestamp evita que el navegador reutilice
+          accidentalmente una respuesta anterior en caché.
+        */
+        const separador =
+          MAKE_WEBHOOK.includes("?") ? "&" : "?";
+
+        const urlMake =
+          MAKE_WEBHOOK +
+          separador +
+          "_=" +
+          Date.now();
+
+
+        const respuesta =
+          await fetch(urlMake, {
+            method: "GET",
+            cache: "no-store"
+          });
+
+
+        if (!respuesta.ok) {
+
+          throw new Error(
+            "Make respondió con error"
+          );
+        }
+
+
+        /*
+          Make debería devolver solamente:
+          1
+          2
+          3
+          etc.
+        */
+        const texto =
+          await respuesta.text();
+
+        const numero =
+          parseInt(texto.trim(), 10);
+
+
+        if (
+          !Number.isInteger(numero) ||
+          numero < 1
+        ) {
+
+          throw new Error(
+            "El turno recibido no es válido"
+          );
+        }
+
+
+        /*
+          Guardamos el número ANTES de abrir WhatsApp.
+
+          Así, aunque la persona vuelva a la página
+          o la recargue, seguirá teniendo el mismo.
+        */
+        localStorage.setItem(
+          CLAVE_TURNO,
+          String(numero)
+        );
+
+
+        mostrarTurno(numero);
+
+
+        status.textContent =
+          "Turno asignado. Abriendo WhatsApp…";
+
+
+        abrirWhatsApp(numero);
+
+
+      } catch (error) {
+
+        console.error(error);
+
+        status.textContent =
+          "No pudimos asignar tu turno. Tocá nuevamente para intentar.";
+
+        boton.disabled = false;
+      }
     }
 
-    localStorage.setItem(CLAVE_TURNO, numero);
 
-    mostrarTurno(numero);
+    /*
+      Al cargar la página comprobamos si este navegador
+      ya tiene un turno para este evento.
+    */
+    const turnoExistente =
+      localStorage.getItem(CLAVE_TURNO);
 
-    abrirWhatsApp(numero);
 
-  } catch (error) {
+    if (turnoExistente) {
 
-    status.textContent =
-      "No pudimos asignar el turno. Intentá nuevamente.";
+      mostrarTurno(turnoExistente);
 
-    boton.disabled = false;
-  }
-}
+      document.getElementById("intro").textContent =
+        "Ya tenés un turno asignado. Podés volver a abrir WhatsApp sin sacar otro.";
 
-function mostrarTurno(numero) {
+      document.getElementById("status").textContent =
+        "Tu lugar en la cola conserva el mismo número.";
+    }
 
-  document.getElementById("turno").textContent =
-    formatoTurno(numero);
-
-  document.getElementById("boton").textContent =
-    "ABRIR WHATSAPP";
-}
-
-const turnoExistente =
-  localStorage.getItem(CLAVE_TURNO);
-
-if (turnoExistente) {
-
-  mostrarTurno(turnoExistente);
-
-  document.getElementById("intro").textContent =
-    "Ya tenés un turno asignado. Podés volver a abrir WhatsApp sin sacar otro.";
-}
-</script>
+  </script>
 
 </body>
+
 </html>
