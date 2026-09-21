@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Administración · Soy Amor Universal 111</title>
-  <link rel="stylesheet" href="../styles.css">
+  <link rel="stylesheet" href="../styles.css?v=20260921-3">
 </head>
 <body>
   <main class="container">
@@ -267,11 +267,9 @@
 
     document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{
       showTab(b.dataset.tab);
-      if(window.matchMedia('(max-width:720px)').matches){
-        adminTabs.classList.remove('mobile-open');
-        menuBtn.setAttribute('aria-expanded','false');
-        menuBtn.textContent='☰';
-      }
+      adminTabs.classList.remove('mobile-open');
+      menuBtn.setAttribute('aria-expanded','false');
+      menuBtn.textContent='☰';
     }));
     q('cancelEditBtn').addEventListener('click',()=>showTab('events'));
     q('backFromTurnsBtn').addEventListener('click',()=>showTab('events'));
