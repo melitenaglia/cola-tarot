@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Administración · Soy Amor Universal 111</title>
-  <link rel="stylesheet" href="../styles.css?v=20260924-3">
+  <link rel="stylesheet" href="../styles.css?v=20260924-4">
 </head>
 <body>
   <main class="container">
@@ -51,6 +51,7 @@
 
       <section id="tab-turns" class="tabpane hidden">
         <div class="card">
+          ${e.image_url?'<img class="admin-event-thumb" src="'+e.image_url+'" alt="">':''}
           <div class="topbar">
             <div>
               <div class="small">GESTIÓN DE TURNOS</div>
@@ -91,7 +92,8 @@
 
       <section id="tab-new" class="tabpane hidden">
         <div class="card">
-          <h2>Nuevo evento</h2>
+          <h2 id="newEventTitle">Nuevo evento</h2>
+          <div id="duplicateEventNote" class="note hidden" style="margin-bottom:12px"></div>
           <form id="eventForm" class="stack">
             <div class="grid grid-2">
               <label>Nombre del evento<input id="evName" required placeholder="Tarot & Cocktail"></label>
@@ -102,6 +104,8 @@
               <label>Dirección<input id="evAddress"></label>
             </div>
             <label>Link Google Maps<input id="evMaps" type="url"></label>
+            <label>Web oficial / entradas<input id="evOfficial" type="url" placeholder="https://..."></label>
+            <label>Imagen del evento<input id="evImage" type="file" accept="image/jpeg,image/png,image/webp,image/gif"><span class="small">JPG, PNG, WEBP o GIF · máximo 5 MB.</span></label>
             <label>Descripción<textarea id="evDescription"></textarea></label>
             <div class="grid grid-2">
               <label>Máximo de turnos (opcional)<input id="evMax" type="number" min="1"></label>
@@ -136,6 +140,11 @@
               <label>Dirección<input id="editAddress"></label>
             </div>
             <label>Link Google Maps<input id="editMaps" type="url"></label>
+            <label>Web oficial / entradas<input id="editOfficial" type="url" placeholder="https://..."></label>
+            <div id="editImagePreviewWrap" class="event-image-preview-wrap hidden">
+              <img id="editImagePreview" class="event-image-preview" alt="Imagen actual del evento">
+            </div>
+            <label>Cambiar imagen<input id="editImage" type="file" accept="image/jpeg,image/png,image/webp,image/gif"><span class="small">Si no elegís otra imagen, se mantiene la actual.</span></label>
             <label>Descripción<textarea id="editDescription"></textarea></label>
             <div class="grid grid-2">
               <label>Máximo de turnos (opcional)<input id="editMax" type="number" min="1"></label>
@@ -334,6 +343,7 @@
     let cachedTrash = [];
     let cachedServiceTemplates = [];
     let currentEditEventId = null;
+    let duplicateSourceEventId = null;
     let eventListFilter = 'today';
 
     const q = id => document.getElementById(id);
@@ -402,6 +412,7 @@
     });
 
     document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{
+      if(b.dataset.tab==='new') resetNewEventMode();
       showTab(b.dataset.tab);
       adminTabs.classList.remove('mobile-open');
       menuBtn.setAttribute('aria-expanded','false');
@@ -510,6 +521,7 @@
             </div>
             <div class="actions">
               <button class="btn btn-secondary" onclick="editEvent('${e.id}')">EDITAR</button>
+              <button class="btn btn-secondary" onclick="duplicateEvent('${e.id}')">DUPLICAR</button>
               ${profile?.role==='admin'
                 ? `<button class="btn btn-danger" onclick="deleteEvent('${e.id}')">ELIMINAR</button>`
                 : ''}
@@ -552,6 +564,60 @@
       renderEventsList();
     }
 
+    async function uploadEventImage(file,eventId){
+      if(!file)return null;
+      if(file.size>5242880) throw new Error('La imagen supera el máximo de 5 MB.');
+      const ext=((file.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,''))||'jpg';
+      const token=(crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2));
+      const path=eventId+'/'+Date.now()+'-'+token+'.'+ext;
+      const { error }=await db.storage.from('event-images').upload(path,file,{
+        cacheControl:'3600',
+        upsert:false,
+        contentType:file.type||undefined
+      });
+      if(error)throw error;
+      return db.storage.from('event-images').getPublicUrl(path).data.publicUrl;
+    }
+
+    function resetNewEventMode(){
+      duplicateSourceEventId=null;
+      q('eventForm').reset();
+      q('newEventTitle').textContent='Nuevo evento';
+      q('duplicateEventNote').textContent='';
+      q('duplicateEventNote').classList.add('hidden');
+      q('eventMsg').textContent='';
+      loadServiceTemplates().then(renderNewEventServiceChoices);
+    }
+
+    window.duplicateEvent=id=>{
+      const e=cachedEvents.find(x=>x.id===id);
+      if(!e)return;
+      const start=localParts(e.starts_at), end=localParts(e.ends_at);
+      duplicateSourceEventId=e.id;
+
+      q('eventForm').reset();
+      q('newEventTitle').textContent='Duplicar evento';
+      q('duplicateEventNote').textContent='Copiamos todo el evento, incluida la imagen y los servicios. Solo falta elegir la nueva fecha.';
+      q('duplicateEventNote').classList.remove('hidden');
+
+      q('evName').value=e.name||'';
+      q('evDate').value='';
+      q('evStart').value=start.time;
+      q('evEnd').value=end.time;
+      q('evLocation').value=e.location_name||'';
+      q('evAddress').value=e.location_address||'';
+      q('evMaps').value=e.maps_url||'';
+      q('evOfficial').value=e.official_url||'';
+      q('evDescription').value=e.description||'';
+      q('evMax').value=e.max_turns||'';
+      q('evUpcoming').value=String(e.show_upcoming);
+      q('eventMsg').textContent='';
+
+      showTab('new');
+      loadServiceTemplates().then(renderNewEventServiceChoices);
+      q('evDate').focus();
+    };
+
     window.editEvent=id=>{
       const e=cachedEvents.find(x=>x.id===id);
       if(!e)return;
@@ -565,6 +631,10 @@
       q('editLocation').value=e.location_name||'';
       q('editAddress').value=e.location_address||'';
       q('editMaps').value=e.maps_url||'';
+      q('editOfficial').value=e.official_url||'';
+      q('editImage').value='';
+      q('editImagePreviewWrap').classList.toggle('hidden',!e.image_url);
+      q('editImagePreview').src=e.image_url||'';
       q('editDescription').value=e.description||'';
       q('editMax').value=e.max_turns||'';
       q('editUpcoming').value=String(e.show_upcoming);
@@ -750,6 +820,8 @@
         location_name:q('evLocation').value.trim()||null,
         location_address:q('evAddress').value.trim()||null,
         maps_url:q('evMaps').value.trim()||null,
+        official_url:q('evOfficial').value.trim()||null,
+        image_url:duplicateSourceEventId ? (cachedEvents.find(x=>x.id===duplicateSourceEventId)?.image_url||null) : null,
         status:'published',
         queue_status:'closed',
         show_upcoming:q('evUpcoming').value==='true',
@@ -758,10 +830,30 @@
       };
       const { data:event, error } = await db.from('events').insert(payload).select().single();
       if(error){q('eventMsg').textContent=error.message;return;}
-      const selectedTemplateIds=[...document.querySelectorAll('input[name="newServiceTemplate"]:checked')].map(x=>x.value);
-      const selectedTemplates=cachedServiceTemplates.filter(t=>selectedTemplateIds.includes(t.id));
-      if(selectedTemplates.length){
-        const serviceRows=selectedTemplates.map((t,i)=>({
+      let serviceRows=[];
+      if(duplicateSourceEventId){
+        const source=cachedEvents.find(e=>e.id===duplicateSourceEventId);
+        serviceRows=(source?.services||[])
+          .filter(s=>s.active)
+          .sort((x,y)=>(x.sort_order||10)-(y.sort_order||10))
+          .map((svc,i)=>({
+            event_id:event.id,
+            template_id:svc.template_id||null,
+            customized:!!svc.customized,
+            name:svc.name,
+            description:svc.description||null,
+            duration_minutes:svc.included_with_entry?null:svc.duration_minutes,
+            price_cents:svc.included_with_entry?null:svc.price_cents,
+            currency:svc.currency||'EUR',
+            included_with_entry:!!svc.included_with_entry,
+            whatsapp_extra:svc.whatsapp_extra||null,
+            sort_order:(i+1)*10,
+            active:true
+          }));
+      }else{
+        const selectedTemplateIds=[...document.querySelectorAll('input[name="newServiceTemplate"]:checked')].map(x=>x.value);
+        const selectedTemplates=cachedServiceTemplates.filter(t=>selectedTemplateIds.includes(t.id));
+        serviceRows=selectedTemplates.map((t,i)=>({
           event_id:event.id,
           template_id:t.id,
           customized:false,
@@ -775,11 +867,30 @@
           sort_order:(i+1)*10,
           active:true
         }));
+      }
+
+      if(serviceRows.length){
         const { error:svcErr }=await db.from('services').insert(serviceRows);
         if(svcErr){q('eventMsg').textContent='Evento creado, pero fallaron los servicios: '+svcErr.message;return;}
       }
+
+      const imageFile=q('evImage').files?.[0]||null;
+      if(imageFile){
+        try{
+          const imageUrl=await uploadEventImage(imageFile,event.id);
+          const { error:imageUpdateError }=await db.from('events').update({image_url:imageUrl}).eq('id',event.id);
+          if(imageUpdateError)throw imageUpdateError;
+        }catch(err){
+          q('eventMsg').textContent='Evento creado, pero no se pudo guardar la imagen: '+err.message;
+          return;
+        }
+      }
+
       q('eventMsg').textContent='Evento creado.';
+      duplicateSourceEventId=null;
       e.target.reset();
+      q('newEventTitle').textContent='Nuevo evento';
+      q('duplicateEventNote').classList.add('hidden');
       renderNewEventServiceChoices();
       showTab('events');
     });
@@ -798,9 +909,20 @@
         location_name:q('editLocation').value.trim()||null,
         location_address:q('editAddress').value.trim()||null,
         maps_url:q('editMaps').value.trim()||null,
+        official_url:q('editOfficial').value.trim()||null,
         show_upcoming:q('editUpcoming').value==='true',
         max_turns:q('editMax').value?Number(q('editMax').value):null
       };
+      const editImageFile=q('editImage').files?.[0]||null;
+      if(editImageFile){
+        try{
+          eventPayload.image_url=await uploadEventImage(editImageFile,id);
+        }catch(err){
+          q('editMsg').textContent='No se pudo guardar la imagen: '+err.message;
+          return;
+        }
+      }
+
       const { error }=await db.from('events').update(eventPayload).eq('id',id);
       if(error){q('editMsg').textContent=error.message;return;}
 
@@ -822,6 +944,24 @@
     function renderNewEventServiceChoices(){
       const box=q('newEventServiceChoices');
       if(!box)return;
+
+      if(duplicateSourceEventId){
+        const source=cachedEvents.find(e=>e.id===duplicateSourceEventId);
+        const services=(source?.services||[]).filter(s=>s.active).sort((x,y)=>(x.sort_order||10)-(y.sort_order||10));
+        box.innerHTML=services.length
+          ? '<div class="note" style="margin-bottom:6px">Se copiarán estos servicios en este orden:</div>'+
+            services.map((svc,i)=>`
+              <div class="service-choice duplicate-service-preview">
+                <span class="service-order-number">${i+1}</span>
+                <span>
+                  <strong>${svc.name}</strong>
+                  <small>${serviceLabel(svc).replace(svc.name+' · ','').replace(svc.name,'') || 'Sin precio ni duración'}${svc.customized?' · Personalizado':''}</small>
+                </span>
+              </div>`).join('')
+          : '<div class="note">El evento original no tiene servicios activos.</div>';
+        return;
+      }
+
       const active=cachedServiceTemplates.filter(t=>t.active);
       if(!active.length){
         box.innerHTML='<div class="note">No hay servicios activos. Crealos desde la pestaña Servicios.</div>';
@@ -877,15 +1017,22 @@
       if(!services.length){
         box.innerHTML='<div class="note">Este evento todavía no tiene servicios.</div>';
       }else{
-        box.innerHTML=services.map(s=>`
-          <div class="list-item">
-            <div class="topbar" style="margin:0">
+        box.innerHTML=services.map((s,i)=>`
+          <div class="list-item event-service-row">
+            <div class="event-service-order">
+              <span class="service-order-number">${i+1}</span>
+              <div class="service-order-buttons">
+                <button class="btn btn-quiet" type="button" onclick="moveEventService('${s.id}',-1)" ${i===0?'disabled':''} aria-label="Subir servicio">↑</button>
+                <button class="btn btn-quiet" type="button" onclick="moveEventService('${s.id}',1)" ${i===services.length-1?'disabled':''} aria-label="Bajar servicio">↓</button>
+              </div>
+            </div>
+            <div class="event-service-content">
               <div>
                 <strong>${s.name}</strong>
                 <div class="meta">${serviceLabel(s).replace(s.name+' · ','').replace(s.name,'') || 'Sin precio ni duración'}</div>
                 ${s.customized?'<span class="pill pill-open" style="margin-top:6px">PERSONALIZADO</span>':''}
               </div>
-              <div class="actions">
+              <div class="actions" style="margin-top:9px">
                 <button class="btn btn-secondary" type="button" onclick="customizeEventService('${s.id}')">PERSONALIZAR</button>
                 ${s.template_id && s.customized?'<button class="btn btn-quiet" type="button" onclick="restoreEventService(\''+s.id+'\')">RESTAURAR ORIGINAL</button>':''}
                 <button class="btn btn-danger" type="button" onclick="removeEventService('${s.id}')">QUITAR</button>
@@ -895,6 +1042,26 @@
       }
       renderAddEventServiceSelect();
     }
+
+    window.moveEventService=async(id,delta)=>{
+      const event=cachedEvents.find(e=>e.id===currentEditEventId);
+      const services=(event?.services||[]).filter(s=>s.active).sort((x,y)=>(x.sort_order||10)-(y.sort_order||10));
+      const index=services.findIndex(s=>s.id===id);
+      const target=index+delta;
+      if(index<0 || target<0 || target>=services.length)return;
+      [services[index],services[target]]=[services[target],services[index]];
+
+      for(let i=0;i<services.length;i++){
+        const { error }=await db.from('services').update({
+          sort_order:(i+1)*10,
+          updated_at:new Date().toISOString()
+        }).eq('id',services[i].id);
+        if(error){alert(error.message);return;}
+      }
+      await loadEvents();
+      currentEditEventId=event.id;
+      renderEditEventServices();
+    };
 
     async function loadServiceTemplates(){
       const { data,error }=await db.from('service_templates').select('*').order('sort_order').order('name');
