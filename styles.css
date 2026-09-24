@@ -745,3 +745,53 @@ hr{
     font-size:13px;
   }
 }
+
+
+/* Filtros de eventos del admin */
+.event-filter-tabs{
+  display:grid;
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:6px;
+  margin:10px 0 12px;
+}
+.event-filter{
+  appearance:none;
+  border:1px solid var(--line);
+  background:#fff;
+  color:var(--muted);
+  border-radius:7px;
+  padding:9px 8px;
+  min-height:40px;
+  font-family:"Open Sans",sans-serif;
+  font-size:12px;
+  font-weight:600;
+  cursor:pointer;
+}
+.event-filter span{
+  display:inline-flex;
+  min-width:20px;
+  justify-content:center;
+  margin-left:4px;
+  padding:1px 5px;
+  border-radius:5px;
+  background:var(--cream-soft);
+  color:var(--ink-soft);
+  font-size:10px;
+}
+.event-filter.active{
+  background:var(--gold-soft);
+  border-color:#E2CDA6;
+  color:var(--ink);
+}
+.event-filter.active span{
+  background:#fff;
+  color:var(--ink);
+}
+
+@media(max-width:480px){
+  .event-filter-tabs{gap:5px}
+  .event-filter{
+    padding:8px 5px;
+    font-size:11px;
+  }
+}
