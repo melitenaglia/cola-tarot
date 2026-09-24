@@ -1033,3 +1033,75 @@ hr{
     height:150px;
   }
 }
+
+
+/* Prioridad visual de la lista de espera activa */
+body.has-open-queue #activeEventCard{
+  min-height:calc(100svh - 110px);
+  display:flex;
+  flex-direction:column;
+  border-color:#DCC49C;
+  box-shadow:0 8px 28px rgba(33,34,32,.08);
+}
+body.has-open-queue #activeEventCard .topbar{
+  margin-bottom:4px;
+}
+body.has-open-queue #takeTurnBtn{
+  margin-top:auto !important;
+  min-height:58px;
+  font-size:16px;
+}
+body.has-open-queue #turnArea{
+  margin-top:18px;
+}
+body.has-open-queue #upcomingSection{
+  margin-top:34px;
+  border-color:var(--line-soft);
+  box-shadow:none;
+  background:rgba(255,255,255,.72);
+}
+body.has-open-queue #upcomingSection .upcoming-event-image{
+  display:none;
+}
+body.has-open-queue #upcomingSection .upcoming-event-item{
+  grid-template-columns:1fr;
+  background:transparent;
+}
+body.has-open-queue #upcomingSection .btn-primary{
+  background:#fff;
+  border-color:var(--line);
+}
+.upcoming-intro{
+  margin:-8px 0 13px;
+}
+.no-active-card{
+  text-align:center;
+  padding:28px 22px;
+}
+.no-active-card h2{
+  margin-bottom:8px;
+}
+.no-active-card .meta{
+  max-width:540px;
+  margin:0 auto;
+}
+.no-active-next-btn{
+  margin-top:17px;
+}
+
+@media(max-width:720px){
+  body.has-open-queue #activeEventCard{
+    min-height:calc(100svh - 86px);
+    padding:20px 17px;
+  }
+  body.has-open-queue #takeTurnBtn{
+    min-height:54px;
+    font-size:15px;
+  }
+  body.has-open-queue #upcomingSection{
+    margin-top:28px;
+  }
+  .no-active-card{
+    padding:24px 17px;
+  }
+}
