@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Administración · Soy Amor Universal 111</title>
-  <link rel="stylesheet" href="../styles.css?v=20260924-5">
+  <link rel="stylesheet" href="../styles.css?v=20260924-6">
 </head>
 <body>
   <main class="container">
@@ -141,7 +141,7 @@
             <label>Link Google Maps<input id="editMaps" type="url"></label>
             <label>Web oficial / entradas<input id="editOfficial" type="url" placeholder="https://..."></label>
             <div id="editImagePreviewWrap" class="event-image-preview-wrap hidden">
-              <img id="editImagePreview" class="event-image-preview" alt="Imagen actual del evento">
+              <img id="editImagePreview" class="event-image-preview" alt="Imagen actual del evento" onerror="this.parentElement.classList.add('hidden');this.removeAttribute('src')">
             </div>
             <label>Cambiar imagen<input id="editImage" type="file" accept="image/jpeg,image/png,image/webp,image/gif"><span class="small">Si no elegís otra imagen, se mantiene la actual.</span></label>
             <label>Descripción<textarea id="editDescription"></textarea></label>
