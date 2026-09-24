@@ -882,7 +882,7 @@
             <div class="topbar" style="margin:0">
               <div>
                 <strong>${s.name}</strong>
-                <div class="meta">${serviceLabel(s)}</div>
+                <div class="meta">${serviceLabel(s).replace(s.name+' · ','').replace(s.name,'') || 'Sin precio ni duración'}</div>
                 ${s.customized?'<span class="pill pill-open" style="margin-top:6px">PERSONALIZADO</span>':''}
               </div>
               <div class="actions">
