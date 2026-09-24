@@ -56,7 +56,7 @@
         <div class="card">
           <div class="topbar turns-admin-head">
             <div class="turns-admin-event">
-              <img id="turnsEventThumb" class="admin-event-thumb turns-event-thumb hidden" alt="" loading="lazy" onerror="this.classList.add('hidden')">
+              <img id="turnsEventThumb" class="admin-event-thumb turns-event-thumb hidden" alt="">
               <div>
                 <div class="small">GESTIÓN DE TURNOS</div>
                 <h2 id="turnsEventName" style="margin:4px 0 0"></h2>
@@ -750,9 +750,17 @@
         q('turnsEventName').textContent=event.name;
         q('turnsEventMeta').textContent=eventSpan(event.starts_at,event.ends_at)+(event.location_name?' · '+event.location_name:'');
         const thumb=q('turnsEventThumb');
-        if(event.image_url){
-          thumb.src=event.image_url;
-          thumb.classList.remove('hidden');
+        if(event.image_url && thumb.dataset.failedUrl!==event.image_url){
+          if(thumb.getAttribute('src')!==event.image_url){
+            thumb.classList.add('hidden');
+            thumb.onload=()=>thumb.classList.remove('hidden');
+            thumb.onerror=()=>{
+              thumb.dataset.failedUrl=event.image_url;
+              thumb.classList.add('hidden');
+              thumb.removeAttribute('src');
+            };
+            thumb.src=event.image_url;
+          }
         }else{
           thumb.removeAttribute('src');
           thumb.classList.add('hidden');
