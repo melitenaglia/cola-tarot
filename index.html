@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Eventos · Soy Amor Universal 111</title>
-  <link rel="stylesheet" href="./styles.css?v=20260924-6">
+  <link rel="stylesheet" href="./styles.css?v=20260924-5">
 </head>
 <body>
   <main class="container">
@@ -32,6 +32,10 @@
         </div>
       </div>
       <div id="activeMeta" class="meta"></div>
+      <div class="active-queue-instruction">
+        <strong>Reservá tu turno para este evento</strong>
+        <span>Elegí tu lectura si corresponde y sacá tu turno acá.</span>
+      </div>
       <div id="serviceBox" class="stack" style="margin-top:18px"></div>
 
       <div id="turnArea" class="hidden">
@@ -60,13 +64,13 @@
         </div>
       </div>
 
-      <button id="takeTurnBtn" class="btn btn-primary" style="width:100%;margin-top:18px">SACAR TURNO</button>
+      <button id="takeTurnBtn" class="btn btn-primary" style="width:100%;margin-top:18px">SACAR MI TURNO</button>
       <div id="queueStatus" class="note" style="margin-top:12px"></div>
     </section>
 
     <section id="noActive" class="card no-active-card">
       <h2>No hay una lista de espera abierta en este momento</h2>
-      <p class="meta">Podés ver los próximos eventos y consultar toda la información desde acá.</p>
+      <p class="meta">Cuando haya un evento con turnos disponibles, vas a poder reservar desde esta misma pantalla. Mientras tanto, podés ver los próximos eventos.</p>
       <a class="btn btn-secondary no-active-next-btn" href="#upcomingSection">VER PRÓXIMOS EVENTOS ↓</a>
     </section>
 
@@ -253,6 +257,10 @@
         eventSpan(event.starts_at,event.ends_at)+(event.location_name?' · '+event.location_name:'');
 
       if(event.image_url){
+        image.onerror=()=>{
+          image.classList.add('hidden');
+          image.removeAttribute('src');
+        };
         image.src=event.image_url;
         image.alt=event.name||'Imagen del evento';
         image.classList.remove('hidden');
