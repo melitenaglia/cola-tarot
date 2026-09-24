@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Administración · Soy Amor Universal 111</title>
-  <link rel="stylesheet" href="../styles.css?v=20260924-6">
+  <link rel="stylesheet" href="../styles.css?v=20260924-5">
 </head>
 <body>
   <main class="container">
@@ -21,9 +21,12 @@
 
     <section id="app" class="hidden">
       <div class="topbar admin-header">
-        <div>
-          <h1 style="margin:0">Panel de eventos</h1>
-          <div id="whoami" class="small"></div>
+        <div class="admin-header-left">
+          <button id="adminBackBtn" class="btn btn-quiet app-back-btn hidden" type="button" aria-label="Volver a eventos">←</button>
+          <div>
+            <h1 style="margin:0">Panel de eventos</h1>
+            <div id="whoami" class="small"></div>
+          </div>
         </div>
         <div class="admin-header-actions">
           <button id="menuToggleBtn" class="btn btn-secondary menu-toggle" type="button" aria-expanded="false" aria-controls="adminTabs">☰</button>
@@ -57,10 +60,11 @@
               <h2 id="turnsEventName" style="margin:4px 0 0"></h2>
               <div id="turnsEventMeta" class="meta"></div>
             </div>
-            <button id="backFromTurnsBtn" class="btn btn-secondary" type="button">Volver</button>
+            <button id="refreshTurnsBtn" class="btn btn-secondary" type="button">↻ ACTUALIZAR</button>
           </div>
 
-          <div class="grid grid-2 metrics-grid" style="margin-top:16px">
+          <div id="turnsLastUpdated" class="small" style="text-align:right;margin-top:2px"></div>
+          <div class="grid grid-2 metrics-grid" style="margin-top:12px">
             <div class="stat">Pendientes<strong id="waitingCount">0</strong></div>
             <div class="stat">Atendidos<strong id="doneCount">0</strong></div>
           </div>
@@ -393,6 +397,7 @@
       document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
       document.querySelectorAll('.tabpane').forEach(p=>p.classList.add('hidden'));
       q('tab-'+name).classList.remove('hidden');
+      q('adminBackBtn').classList.toggle('hidden',name==='events');
       if(name==='events') loadEvents();
       if(name==='new') loadServiceTemplates();
       if(name==='services') loadServiceTemplates();
@@ -418,7 +423,8 @@
       menuBtn.textContent='☰';
     }));
     q('cancelEditBtn').addEventListener('click',()=>showTab('events'));
-    q('backFromTurnsBtn').addEventListener('click',()=>showTab('events'));
+    q('adminBackBtn').addEventListener('click',()=>showTab('events'));
+    q('refreshTurnsBtn').addEventListener('click',()=>refreshTurnsScreen());
     q('cancelUserEditBtn').addEventListener('click',()=>{
       q('editUserBox').classList.add('hidden');
       q('editUserMsg').textContent='';
@@ -532,6 +538,7 @@
           </div>
           <div class="actions" style="margin-top:14px">
             <button class="btn btn-primary" onclick="openTurns('${e.id}')">GESTIONAR TURNOS</button>
+            ${eventListFilter==='today'?'<button class="btn btn-secondary" type="button" onclick="refreshEventCard(this)">↻ ACTUALIZAR</button>':''}
             <button class="btn ${e.queue_status==='open'?'btn-danger':'btn-ok'}" onclick="toggleQueue('${e.id}',${e.queue_status!=='open'})">${e.queue_status==='open'?'CERRAR LISTA':'ABRIR LISTA'}</button>
           </div>
           ${(e.services||[]).filter(s=>s.active).length ? '<div class="note" style="margin-top:12px">'+e.services.filter(s=>s.active).sort((x,y)=>(x.sort_order||10)-(y.sort_order||10)).map(serviceLabel).join('<br>')+'</div>':''}
@@ -695,6 +702,28 @@
       }
     }
 
+    window.refreshEventCard=async(btn)=>{
+      if(btn){
+        btn.disabled=true;
+        btn.textContent='ACTUALIZANDO…';
+      }
+      await loadEvents();
+      if(btn && document.body.contains(btn)){
+        btn.disabled=false;
+        btn.textContent='↻ ACTUALIZAR';
+      }
+    };
+
+    async function refreshTurnsScreen(){
+      const btn=q('refreshTurnsBtn');
+      btn.disabled=true;
+      btn.textContent='ACTUALIZANDO…';
+      await loadEvents();
+      await loadTurnsPanel();
+      btn.disabled=false;
+      btn.textContent='↻ ACTUALIZAR';
+    }
+
     window.openTurns=async(id)=>{
       currentTurnsEventId=id;
       showTab('turns');
@@ -730,6 +759,7 @@
 
       q('waitingCount').textContent=waiting.length;
       q('doneCount').textContent=done.length;
+      q('turnsLastUpdated').textContent='Actualizado '+new Intl.DateTimeFormat('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date());
 
       const next=waiting[0]||null;
       q('nextTurnBig').textContent=next?turnShort(next.code):'—';
