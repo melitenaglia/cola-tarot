@@ -404,8 +404,9 @@
       q('countPast').textContent=pastEvents.length;
 
       const byNewest=(x,y)=>new Date(y.starts_at)-new Date(x.starts_at);
-      todayEvents.sort(byNewest);
-      futureEvents.sort(byNewest);
+      const bySoonest=(x,y)=>new Date(x.starts_at)-new Date(y.starts_at);
+      todayEvents.sort(bySoonest);
+      futureEvents.sort(bySoonest);
       pastEvents.sort(byNewest);
 
       const groups={today:todayEvents,future:futureEvents,past:pastEvents};
