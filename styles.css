@@ -855,12 +855,13 @@ hr{
 /* Imágenes y ficha pública de eventos */
 .admin-event-thumb{
   display:block;
-  width:100%;
-  max-height:190px;
+  width:72px;
+  height:72px;
+  flex:0 0 72px;
   object-fit:cover;
   border-radius:7px;
-  margin-bottom:13px;
   border:1px solid var(--line-soft);
+  background:var(--cream-soft);
 }
 .event-image-preview-wrap{
   width:min(100%,420px);
@@ -1299,5 +1300,61 @@ body.has-open-queue #upcomingSection .upcoming-event-item{
   }
   .no-active-card{
     padding:26px 17px !important;
+  }
+}
+
+
+/* Miniaturas y controles operativos del admin */
+.admin-event-card-head{
+  align-items:flex-start;
+}
+.admin-event-card-main{
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+  min-width:0;
+  flex:1 1 auto;
+}
+.admin-event-card-copy{
+  min-width:0;
+}
+.turns-admin-head{
+  align-items:flex-start;
+}
+.turns-admin-event{
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+  min-width:0;
+}
+.turns-event-thumb{
+  width:64px;
+  height:64px;
+  flex-basis:64px;
+}
+.turns-admin-actions{
+  justify-content:flex-end;
+}
+@media(max-width:720px){
+  .admin-event-thumb{
+    width:58px;
+    height:58px;
+    flex-basis:58px;
+  }
+  .admin-event-card-main{
+    gap:9px;
+  }
+  .turns-admin-head{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:10px;
+  }
+  .turns-admin-actions{
+    width:100%;
+    display:grid;
+    grid-template-columns:1fr 1fr;
+  }
+  .turns-admin-actions .btn{
+    width:100%;
   }
 }
