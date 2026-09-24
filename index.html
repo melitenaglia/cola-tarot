@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Eventos · Soy Amor Universal 111</title>
-  <link rel="stylesheet" href="./styles.css?v=20260924-4">
+  <link rel="stylesheet" href="./styles.css?v=20260924-5">
 </head>
 <body>
   <main class="container">
@@ -15,7 +15,7 @@
 
     <section id="eventDetailCard" class="card event-detail-card hidden">
       <button id="backToEventsBtn" class="btn btn-quiet" type="button">← VOLVER A EVENTOS</button>
-      <img id="eventDetailImage" class="event-detail-image hidden" alt="">
+      <img id="eventDetailImage" class="event-detail-image hidden" alt="" onerror="this.classList.add('hidden')">
       <div id="eventDetailMeta" class="meta" style="margin-top:14px"></div>
       <h2 id="eventDetailName" class="event-detail-title"></h2>
       <p id="eventDetailDescription" class="event-detail-description hidden"></p>
@@ -64,13 +64,15 @@
       <div id="queueStatus" class="note" style="margin-top:12px"></div>
     </section>
 
-    <section id="noActive" class="card">
-      <h2>Ahora mismo no hay una lista de espera abierta</h2>
-      <p class="meta">Podés volver más tarde o mirar los próximos eventos.</p>
+    <section id="noActive" class="card no-active-card">
+      <h2>No hay una lista de espera abierta en este momento</h2>
+      <p class="meta">Cuando haya un evento con turnos activos, vas a poder reservar desde acá.</p>
+      <a class="btn btn-secondary no-active-next-btn" href="#upcomingSection">VER PRÓXIMOS EVENTOS ↓</a>
     </section>
 
     <section id="upcomingSection" class="card">
-      <h2>Próximos eventos</h2>
+      <h2 id="upcomingTitle">Próximos eventos</h2>
+      <p id="upcomingIntro" class="note upcoming-intro">Mirá los próximos encuentros y toda la información de cada evento.</p>
       <div id="upcomingList" class="list">
         <div class="note">Cargando…</div>
       </div>
@@ -332,9 +334,12 @@
       }
 
       activeEvent = (events || []).find(e => e.queue_status === 'open');
+      document.body.classList.toggle('has-open-queue',!!activeEvent);
       if (activeEvent) {
         document.getElementById('activeEventCard').classList.remove('hidden');
         document.getElementById('noActive').classList.add('hidden');
+        document.getElementById('upcomingTitle').textContent='Otros próximos eventos';
+        document.getElementById('upcomingIntro').textContent='Información para más adelante. Tu turno de hoy se gestiona arriba.';
         document.getElementById('activeName').textContent = activeEvent.name;
         document.getElementById('activeMeta').innerHTML =
           `${eventSpan(activeEvent.starts_at,activeEvent.ends_at)}${activeEvent.location_name ? ' · '+activeEvent.location_name : ''}` +
@@ -343,21 +348,10 @@
         await loadServices(activeEvent.id);
         restoreTurn();
       } else {
-        const todayKey = localDateKey(new Date());
-        const todayEvent = (events || [])
-          .filter(e => localDateKey(e.starts_at) === todayKey)
-          .sort((a,b) => new Date(b.starts_at) - new Date(a.starts_at))[0];
-
-        const noActive = document.getElementById('noActive');
-        if (todayEvent && new Date() >= new Date(todayEvent.starts_at)) {
-          noActive.innerHTML = '<h2>La lista de espera de hoy ya cerró</h2><p id="closedMessagePublic" class="meta"></p>';
-          document.getElementById('closedMessagePublic').textContent =
-            settings?.closed_message || 'Gracias por compartir este encuentro ✦ Podés seguir a Soy Amor Universal 111 o conocer más en la web.';
-        } else if (todayEvent) {
-          noActive.innerHTML = '<h2>La lista de espera todavía no está abierta</h2><p class="meta">Volvé a escanear el QR cuando comience el evento.</p>';
-        } else {
-          noActive.innerHTML = '<h2>Ahora mismo no hay una lista de espera abierta</h2><p class="meta">Podés volver más tarde o mirar los próximos eventos.</p>';
-        }
+        document.getElementById('activeEventCard').classList.add('hidden');
+        document.getElementById('noActive').classList.remove('hidden');
+        document.getElementById('upcomingTitle').textContent='Próximos eventos';
+        document.getElementById('upcomingIntro').textContent='Mirá los próximos encuentros y toda la información de cada evento.';
       }
 
       const upcoming = (events || []).filter(e =>
