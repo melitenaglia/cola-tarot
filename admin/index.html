@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Administración · Soy Amor Universal 111</title>
-  <link rel="stylesheet" href="../styles.css?v=20260924-1">
+  <link rel="stylesheet" href="../styles.css?v=20260924-2">
 </head>
 <body>
   <main class="container">
@@ -96,7 +96,7 @@
               <label>Nombre del evento<input id="evName" required placeholder="Tarot & Cocktail"></label>
               <label>Fecha<input id="evDate" type="date" required></label>
               <label>Hora inicio<input id="evStart" type="time" required></label>
-              <label>Hora fin<input id="evEnd" type="time" required></label>
+              <label>Hora fin<input id="evEnd" type="time" required><span class="small">Si termina después de medianoche, poné la hora real (ej. 02:00).</span></label>
               <label>Lugar<input id="evLocation" placeholder="Tinta Roja"></label>
               <label>Dirección<input id="evAddress"></label>
             </div>
@@ -133,7 +133,7 @@
               <label>Nombre del evento<input id="editName" required></label>
               <label>Fecha<input id="editDate" type="date" required></label>
               <label>Hora inicio<input id="editStart" type="time" required></label>
-              <label>Hora fin<input id="editEnd" type="time" required></label>
+              <label>Hora fin<input id="editEnd" type="time" required><span class="small">Si termina después de medianoche, poné la hora real (ej. 02:00).</span></label>
               <label>Lugar<input id="editLocation"></label>
               <label>Dirección<input id="editAddress"></label>
             </div>
@@ -265,6 +265,23 @@
 
     const q = id => document.getElementById(id);
     const localDT = (date,time) => new Date(date+'T'+time+':00').toISOString();
+    const endDT = (date,startTime,endTime) => {
+      const start = new Date(date+'T'+startTime+':00');
+      const end = new Date(date+'T'+endTime+':00');
+      if (end <= start) end.setDate(end.getDate()+1);
+      return end.toISOString();
+    };
+    const hourLabel = iso => {
+      const d=new Date(iso);
+      const h=d.getHours();
+      const m=d.getMinutes();
+      return m ? h+':'+String(m).padStart(2,'0')+' hs' : h+' hs';
+    };
+    const eventSpan = (start,end) => {
+      const d=new Date(start);
+      const date=new Intl.DateTimeFormat('es-ES',{day:'2-digit',month:'2-digit',year:'2-digit'}).format(d);
+      return date+' · '+hourLabel(start)+' - '+hourLabel(end);
+    };
     const eventCode = date => {
       const [y,m,d] = date.split('-');
       return d+m+y.slice(2);
@@ -373,9 +390,14 @@
       const box=q('eventsList');
       const today=localDateOnly(new Date());
 
-      const todayEvents=cachedEvents.filter(e=>localDateOnly(e.starts_at)===today);
-      const futureEvents=cachedEvents.filter(e=>localDateOnly(e.starts_at)>today);
-      const pastEvents=cachedEvents.filter(e=>localDateOnly(e.starts_at)<today);
+      const now=new Date();
+      const todayEvents=cachedEvents.filter(e=>
+        localDateOnly(e.starts_at)===today ||
+        (now>=new Date(e.starts_at) && now<=new Date(e.ends_at))
+      );
+      const todayIds=new Set(todayEvents.map(e=>e.id));
+      const futureEvents=cachedEvents.filter(e=>!todayIds.has(e.id) && new Date(e.starts_at)>now);
+      const pastEvents=cachedEvents.filter(e=>!todayIds.has(e.id) && new Date(e.ends_at)<now);
 
       q('countToday').textContent=todayEvents.length;
       q('countFuture').textContent=futureEvents.length;
@@ -405,7 +427,7 @@
             <div>
               <span class="pill ${e.queue_status==='open'?'pill-open':'pill-closed'}">${e.queue_status==='open'?'LISTA DE ESPERA ABIERTA':'LISTA DE ESPERA CERRADA'}</span>
               <h2 style="margin:10px 0 5px">${e.name}</h2>
-              <div class="meta">${fmt(e.starts_at)}${e.location_name?' · '+e.location_name:''}<br>Código: ${e.event_code}</div>
+              <div class="meta">${eventSpan(e.starts_at,e.ends_at)}${e.location_name?' · '+e.location_name:''}<br>Código: ${e.event_code}</div>
             </div>
             <div class="actions">
               <button class="btn btn-secondary" onclick="editEvent('${e.id}')">EDITAR</button>
@@ -542,7 +564,7 @@
       const event=cachedEvents.find(e=>e.id===currentTurnsEventId);
       if(event){
         q('turnsEventName').textContent=event.name;
-        q('turnsEventMeta').textContent=fmt(event.starts_at)+(event.location_name?' · '+event.location_name:'');
+        q('turnsEventMeta').textContent=eventSpan(event.starts_at,event.ends_at)+(event.location_name?' · '+event.location_name:'');
       }
 
       const { data,error }=await db
@@ -639,7 +661,7 @@
         event_code:eventCode(date),
         description:q('evDescription').value.trim()||null,
         starts_at:localDT(date,q('evStart').value),
-        ends_at:localDT(date,q('evEnd').value),
+        ends_at:endDT(date,q('evStart').value,q('evEnd').value),
         location_name:q('evLocation').value.trim()||null,
         location_address:q('evAddress').value.trim()||null,
         maps_url:q('evMaps').value.trim()||null,
@@ -680,7 +702,7 @@
         event_code:eventCode(date),
         description:q('editDescription').value.trim()||null,
         starts_at:localDT(date,q('editStart').value),
-        ends_at:localDT(date,q('editEnd').value),
+        ends_at:endDT(date,q('editStart').value,q('editEnd').value),
         location_name:q('editLocation').value.trim()||null,
         location_address:q('editAddress').value.trim()||null,
         maps_url:q('editMaps').value.trim()||null,
