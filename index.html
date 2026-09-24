@@ -4,13 +4,24 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Eventos · Soy Amor Universal 111</title>
-  <link rel="stylesheet" href="./styles.css?v=20260924-3">
+  <link rel="stylesheet" href="./styles.css?v=20260924-4">
 </head>
 <body>
   <main class="container">
     <section class="hero">
       <h1 class="brand">Soy Amor Universal 111</h1>
       <p id="publicSubtitle" class="sub hidden"></p>
+    </section>
+
+    <section id="eventDetailCard" class="card event-detail-card hidden">
+      <button id="backToEventsBtn" class="btn btn-quiet" type="button">← VOLVER A EVENTOS</button>
+      <img id="eventDetailImage" class="event-detail-image hidden" alt="">
+      <div id="eventDetailMeta" class="meta" style="margin-top:14px"></div>
+      <h2 id="eventDetailName" class="event-detail-title"></h2>
+      <p id="eventDetailDescription" class="event-detail-description hidden"></p>
+      <div id="eventDetailLocation" class="event-detail-location hidden"></div>
+      <div id="eventDetailServices" class="event-detail-services hidden"></div>
+      <div id="eventDetailActions" class="event-detail-actions"></div>
     </section>
 
     <section id="activeEventCard" class="card hidden">
@@ -58,7 +69,7 @@
       <p class="meta">Podés volver más tarde o mirar los próximos eventos.</p>
     </section>
 
-    <section class="card">
+    <section id="upcomingSection" class="card">
       <h2>Próximos eventos</h2>
       <div id="upcomingList" class="list">
         <div class="note">Cargando…</div>
@@ -84,6 +95,7 @@
     let selectedServiceId = null;
     let settings = null;
     let queueRefreshTimer = null;
+    const requestedEventId = new URLSearchParams(window.location.search).get('evento');
 
     function fmtDate(iso) {
       const d = new Date(iso);
@@ -211,6 +223,94 @@
       }
     }
 
+    async function renderEventDetail(event){
+      if(!event)return;
+
+      document.getElementById('activeEventCard').classList.add('hidden');
+      document.getElementById('noActive').classList.add('hidden');
+      document.getElementById('upcomingSection').classList.add('hidden');
+
+      const card=document.getElementById('eventDetailCard');
+      const image=document.getElementById('eventDetailImage');
+      const description=document.getElementById('eventDetailDescription');
+      const location=document.getElementById('eventDetailLocation');
+      const actions=document.getElementById('eventDetailActions');
+      const servicesBox=document.getElementById('eventDetailServices');
+
+      document.getElementById('eventDetailName').textContent=event.name||'Evento';
+      document.getElementById('eventDetailMeta').textContent=
+        eventSpan(event.starts_at,event.ends_at)+(event.location_name?' · '+event.location_name:'');
+
+      if(event.image_url){
+        image.src=event.image_url;
+        image.alt=event.name||'Imagen del evento';
+        image.classList.remove('hidden');
+      }else{
+        image.src='';
+        image.classList.add('hidden');
+      }
+
+      if(event.description){
+        description.textContent=event.description;
+        description.classList.remove('hidden');
+      }else{
+        description.textContent='';
+        description.classList.add('hidden');
+      }
+
+      if(event.location_name || event.location_address){
+        location.innerHTML=
+          (event.location_name?'<strong>'+event.location_name+'</strong>':'')+
+          (event.location_address?'<div class="meta">'+event.location_address+'</div>':'');
+        location.classList.remove('hidden');
+      }else{
+        location.innerHTML='';
+        location.classList.add('hidden');
+      }
+
+      const { data: detailServices }=await db.from('services')
+        .select('*')
+        .eq('event_id',event.id)
+        .eq('active',true)
+        .order('sort_order');
+
+      const services=detailServices||[];
+      if(services.length){
+        servicesBox.innerHTML=
+          '<div class="small" style="margin-bottom:7px">LECTURAS DISPONIBLES</div>'+
+          services.map(s=>{
+            const parts=[];
+            if(!s.included_with_entry && s.duration_minutes) parts.push(s.duration_minutes+' min');
+            if(!s.included_with_entry && s.price_cents!=null) parts.push((s.price_cents/100).toFixed(0)+' €');
+            return '<div class="event-detail-service"><strong>'+s.name+'</strong>'+
+              (parts.length?'<span>'+parts.join(' · ')+'</span>':'')+
+              (s.description?'<small>'+s.description+'</small>':'')+
+              '</div>';
+          }).join('');
+        servicesBox.classList.remove('hidden');
+      }else{
+        servicesBox.innerHTML='';
+        servicesBox.classList.add('hidden');
+      }
+
+      actions.innerHTML='';
+      if(event.maps_url){
+        actions.insertAdjacentHTML('beforeend',
+          '<a class="btn btn-secondary" href="'+event.maps_url+'" target="_blank" rel="noopener">📍 VER EN GOOGLE MAPS</a>');
+      }
+      if(event.official_url){
+        actions.insertAdjacentHTML('beforeend',
+          '<a class="btn btn-primary" href="'+event.official_url+'" target="_blank" rel="noopener">↗ WEB OFICIAL / ENTRADAS</a>');
+      }
+
+      card.classList.remove('hidden');
+      window.scrollTo({top:0,behavior:'smooth'});
+    }
+
+    document.getElementById('backToEventsBtn').addEventListener('click',()=>{
+      window.location.href=window.location.pathname;
+    });
+
     async function loadEvents() {
       const now = new Date().toISOString();
       const { data: events, error } = await db
@@ -221,6 +321,14 @@
       if (error) {
         document.getElementById('upcomingList').innerHTML = '<div class="note">No pudimos cargar los eventos.</div>';
         return;
+      }
+
+      if(requestedEventId){
+        const detailEvent=(events||[]).find(e=>e.id===requestedEventId);
+        if(detailEvent){
+          await renderEventDetail(detailEvent);
+          return;
+        }
       }
 
       activeEvent = (events || []).find(e => e.queue_status === 'open');
@@ -252,16 +360,26 @@
         }
       }
 
-      const upcoming = (events || []).filter(e => new Date(e.starts_at) >= new Date() && (!activeEvent || e.id !== activeEvent.id));
+      const upcoming = (events || []).filter(e =>
+        e.show_upcoming &&
+        new Date(e.starts_at) >= new Date() &&
+        (!activeEvent || e.id !== activeEvent.id)
+      );
       const list = document.getElementById('upcomingList');
       if (!upcoming.length) {
         list.innerHTML = '<div class="note">No hay próximos eventos publicados por ahora.</div>';
       } else {
         list.innerHTML = upcoming.map(e => `
-          <div class="list-item">
-            <strong>${e.name}</strong>
-            <div class="meta">${eventSpan(e.starts_at,e.ends_at)}${e.location_name ? ' · '+e.location_name : ''}</div>
-            ${e.maps_url ? `<a href="${e.maps_url}" target="_blank" rel="noopener">Ver ubicación</a>` : ''}
+          <div class="list-item upcoming-event-item">
+            ${e.image_url?'<img class="upcoming-event-image" src="'+e.image_url+'" alt="">':''}
+            <div class="upcoming-event-content">
+              <strong>${e.name}</strong>
+              <div class="meta">${eventSpan(e.starts_at,e.ends_at)}${e.location_name ? ' · '+e.location_name : ''}</div>
+              <div class="actions" style="margin-top:9px">
+                <a class="btn btn-secondary" href="?evento=${encodeURIComponent(e.id)}">VER EVENTO</a>
+                ${e.official_url?'<a class="btn btn-primary" href="'+e.official_url+'" target="_blank" rel="noopener">↗ ENTRADAS / WEB</a>':''}
+              </div>
+            </div>
           </div>`).join('');
       }
     }
