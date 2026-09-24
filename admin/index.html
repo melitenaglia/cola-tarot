@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Administración · Soy Amor Universal 111</title>
-  <link rel="stylesheet" href="../styles.css?v=20260924-2">
+  <link rel="stylesheet" href="../styles.css?v=20260924-3">
 </head>
 <body>
   <main class="container">
@@ -34,6 +34,7 @@
       <div id="adminTabs" class="tabs">
         <button class="tab active" data-tab="events">Eventos</button>
         <button class="tab" data-tab="new">Nuevo evento</button>
+        <button class="tab" data-tab="services">Servicios</button>
         <button class="tab" data-tab="settings">Configuración</button>
         <button class="tab" data-tab="users">Usuarios</button>
         <button class="tab" data-tab="trash">Papelera</button>
@@ -107,12 +108,10 @@
               <label>Mostrar en próximos eventos<select id="evUpcoming"><option value="true">Sí</option><option value="false">No</option></select></label>
             </div>
             <hr>
-            <h3>Servicio inicial</h3>
-            <label>Servicio<input id="svcName" value="Pregunta al Tarot" required></label>
-            <label style="display:flex;align-items:center;gap:10px"><input id="svcIncluded" type="checkbox" checked style="width:auto"> Incluido con la entrada</label>
-            <div class="grid grid-2" id="newPaidFields">
-              <label>Duración (min, opcional)<input id="svcDuration" type="number" min="1"></label>
-              <label>Precio (€ , opcional)<input id="svcPrice" type="number" min="0" step="0.01"></label>
+            <h3>Servicios del evento</h3>
+            <p class="note" style="margin-top:-4px">Elegí uno o varios servicios del catálogo. Se copiarán al evento y después podés personalizarlos sin modificar el catálogo general.</p>
+            <div id="newEventServiceChoices" class="service-choice-list">
+              <div class="note">Cargando servicios…</div>
             </div>
             <button class="btn btn-primary" type="submit">GUARDAR EVENTO</button>
             <div id="eventMsg" class="note"></div>
@@ -128,7 +127,6 @@
           </div>
           <form id="editEventForm" class="stack">
             <input id="editId" type="hidden">
-            <input id="editServiceId" type="hidden">
             <div class="grid grid-2">
               <label>Nombre del evento<input id="editName" required></label>
               <label>Fecha<input id="editDate" type="date" required></label>
@@ -143,17 +141,90 @@
               <label>Máximo de turnos (opcional)<input id="editMax" type="number" min="1"></label>
               <label>Mostrar en próximos eventos<select id="editUpcoming"><option value="true">Sí</option><option value="false">No</option></select></label>
             </div>
-            <hr>
-            <h3>Servicio principal</h3>
-            <label>Servicio<input id="editSvcName" required></label>
-            <label style="display:flex;align-items:center;gap:10px"><input id="editSvcIncluded" type="checkbox" style="width:auto"> Incluido con la entrada</label>
-            <div class="grid grid-2" id="editPaidFields">
-              <label>Duración (min, opcional)<input id="editSvcDuration" type="number" min="1"></label>
-              <label>Precio (€ , opcional)<input id="editSvcPrice" type="number" min="0" step="0.01"></label>
-            </div>
             <button class="btn btn-primary" type="submit">GUARDAR CAMBIOS</button>
             <div id="editMsg" class="note"></div>
           </form>
+
+          <hr>
+          <div class="topbar" style="margin-bottom:8px">
+            <div>
+              <h3 style="margin:0">Servicios del evento</h3>
+              <div class="small">Son copias del catálogo. Personalizarlos acá no cambia el servicio general.</div>
+            </div>
+          </div>
+
+          <div id="editEventServicesList" class="list"></div>
+
+          <div class="grid grid-2" style="margin-top:12px">
+            <label>Agregar desde catálogo
+              <select id="addEventServiceSelect"></select>
+            </label>
+            <div style="display:flex;align-items:end">
+              <button id="addEventServiceBtn" class="btn btn-secondary" type="button" style="width:100%">AGREGAR SERVICIO</button>
+            </div>
+          </div>
+
+          <div id="editEventServiceBox" class="list-item hidden" style="margin-top:14px">
+            <div class="topbar">
+              <div>
+                <h3 style="margin:0">Personalizar servicio</h3>
+                <div class="small">Este cambio afecta solo a este evento.</div>
+              </div>
+              <button id="cancelEventServiceEditBtn" class="btn btn-secondary" type="button">Cancelar</button>
+            </div>
+            <form id="eventServiceForm" class="stack">
+              <input id="eventSvcId" type="hidden">
+              <label>Nombre<input id="eventSvcName" required></label>
+              <label class="checkline"><input id="eventSvcIncluded" type="checkbox"> Incluido con la entrada</label>
+              <div id="eventSvcPaidFields" class="grid grid-2">
+                <label>Duración (min)<input id="eventSvcDuration" type="number" min="1"></label>
+                <label>Precio (€)<input id="eventSvcPrice" type="number" min="0" step="0.01"></label>
+              </div>
+              <label>Descripción<textarea id="eventSvcDescription"></textarea></label>
+              <label>Texto adicional para WhatsApp
+                <textarea id="eventSvcWhatsapp" placeholder="La app agrega automáticamente código, turno, servicio, duración y precio."></textarea>
+              </label>
+              <button class="btn btn-primary" type="submit">GUARDAR PERSONALIZACIÓN</button>
+              <div id="eventSvcMsg" class="note"></div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-services" class="tabpane hidden">
+        <div class="card">
+          <div class="topbar">
+            <div>
+              <h2 style="margin:0">Catálogo de servicios</h2>
+              <div class="meta">Estos son los servicios base que podés reutilizar en distintos eventos.</div>
+            </div>
+            <button id="newServiceTemplateBtn" class="btn btn-primary" type="button">NUEVO SERVICIO</button>
+          </div>
+
+          <div id="serviceTemplatesList" class="list"></div>
+
+          <div id="serviceTemplateFormBox" class="list-item hidden" style="margin-top:14px">
+            <div class="topbar">
+              <h3 id="serviceTemplateFormTitle" style="margin:0">Nuevo servicio</h3>
+              <button id="cancelServiceTemplateBtn" class="btn btn-secondary" type="button">Cancelar</button>
+            </div>
+            <form id="serviceTemplateForm" class="stack">
+              <input id="serviceTemplateId" type="hidden">
+              <label>Nombre<input id="serviceTemplateName" required></label>
+              <label class="checkline"><input id="serviceTemplateIncluded" type="checkbox"> Incluido con la entrada</label>
+              <div id="serviceTemplatePaidFields" class="grid grid-2">
+                <label>Duración (min)<input id="serviceTemplateDuration" type="number" min="1"></label>
+                <label>Precio (€)<input id="serviceTemplatePrice" type="number" min="0" step="0.01"></label>
+              </div>
+              <label>Descripción<textarea id="serviceTemplateDescription"></textarea></label>
+              <label>Texto adicional para WhatsApp
+                <textarea id="serviceTemplateWhatsapp" placeholder="Ej.: Carta Natal + mensaje del inconsciente."></textarea>
+              </label>
+              <label class="checkline"><input id="serviceTemplateActive" type="checkbox" checked> Disponible para nuevos eventos</label>
+              <button class="btn btn-primary" type="submit">GUARDAR SERVICIO</button>
+              <div id="serviceTemplateMsg" class="note"></div>
+            </form>
+          </div>
         </div>
       </section>
 
@@ -261,6 +332,8 @@
     let turnsRefreshTimer = null;
     let cachedUsers = [];
     let cachedTrash = [];
+    let cachedServiceTemplates = [];
+    let currentEditEventId = null;
     let eventListFilter = 'today';
 
     const q = id => document.getElementById(id);
@@ -312,6 +385,8 @@
       document.querySelectorAll('.tabpane').forEach(p=>p.classList.add('hidden'));
       q('tab-'+name).classList.remove('hidden');
       if(name==='events') loadEvents();
+      if(name==='new') loadServiceTemplates();
+      if(name==='services') loadServiceTemplates();
       if(name==='settings') loadSettings();
       if(name==='users') loadUsers();
       if(name==='trash') loadTrash();
@@ -340,13 +415,16 @@
     });
 
     function syncPaidFields(checkboxId, containerId){
-      const checked=q(checkboxId).checked;
-      q(containerId).style.opacity=checked?'.45':'1';
-      q(containerId).querySelectorAll('input').forEach(i=>i.disabled=checked);
+      const checkbox=q(checkboxId);
+      const container=q(containerId);
+      if(!checkbox || !container)return;
+      const checked=checkbox.checked;
+      container.style.opacity=checked?'.45':'1';
+      container.querySelectorAll('input').forEach(i=>i.disabled=checked);
     }
-    q('svcIncluded').addEventListener('change',()=>syncPaidFields('svcIncluded','newPaidFields'));
-    q('editSvcIncluded').addEventListener('change',()=>syncPaidFields('editSvcIncluded','editPaidFields'));
-    syncPaidFields('svcIncluded','newPaidFields');
+
+    q('serviceTemplateIncluded').addEventListener('change',()=>syncPaidFields('serviceTemplateIncluded','serviceTemplatePaidFields'));
+    q('eventSvcIncluded').addEventListener('change',()=>syncPaidFields('eventSvcIncluded','eventSvcPaidFields'));
 
     async function ensureAuth(){
       const { data } = await db.auth.getSession();
@@ -445,7 +523,7 @@
             <button class="btn btn-primary" onclick="openTurns('${e.id}')">GESTIONAR TURNOS</button>
             <button class="btn ${e.queue_status==='open'?'btn-danger':'btn-ok'}" onclick="toggleQueue('${e.id}',${e.queue_status!=='open'})">${e.queue_status==='open'?'CERRAR LISTA':'ABRIR LISTA'}</button>
           </div>
-          ${e.services?.length ? '<div class="note" style="margin-top:12px">'+e.services.map(serviceLabel).join('<br>')+'</div>':''}
+          ${(e.services||[]).filter(s=>s.active).length ? '<div class="note" style="margin-top:12px">'+e.services.filter(s=>s.active).sort((x,y)=>(x.sort_order||10)-(y.sort_order||10)).map(serviceLabel).join('<br>')+'</div>':''}
         </div>`).join('');
     }
 
@@ -478,7 +556,7 @@
       const e=cachedEvents.find(x=>x.id===id);
       if(!e)return;
       const start=localParts(e.starts_at), end=localParts(e.ends_at);
-      const svc=(e.services||[]).sort((a,b)=>(a.sort_order||10)-(b.sort_order||10))[0]||null;
+      currentEditEventId=e.id;
       q('editId').value=e.id;
       q('editName').value=e.name||'';
       q('editDate').value=start.date;
@@ -490,14 +568,10 @@
       q('editDescription').value=e.description||'';
       q('editMax').value=e.max_turns||'';
       q('editUpcoming').value=String(e.show_upcoming);
-      q('editServiceId').value=svc?.id||'';
-      q('editSvcName').value=svc?.name||'Pregunta al Tarot';
-      q('editSvcIncluded').checked=!!svc?.included_with_entry;
-      q('editSvcDuration').value=svc?.duration_minutes||'';
-      q('editSvcPrice').value=svc?.price_cents!=null ? svc.price_cents/100 : '';
-      syncPaidFields('editSvcIncluded','editPaidFields');
       q('editMsg').textContent='';
+      q('editEventServiceBox').classList.add('hidden');
       showTab('edit');
+      loadServiceTemplates().then(renderEditEventServices);
     };
 
     window.deleteEvent=async(id)=>{
@@ -674,22 +748,29 @@
       };
       const { data:event, error } = await db.from('events').insert(payload).select().single();
       if(error){q('eventMsg').textContent=error.message;return;}
-      const included=q('svcIncluded').checked;
-      const svc={
-        event_id:event.id,
-        name:q('svcName').value.trim(),
-        duration_minutes:included?null:(q('svcDuration').value?Number(q('svcDuration').value):null),
-        price_cents:included?null:(q('svcPrice').value?Math.round(Number(q('svcPrice').value)*100):null),
-        included_with_entry:included,
-        description:included?'Incluida con la entrada':null,
-        sort_order:10,
-        active:true
-      };
-      const { error:svcErr }=await db.from('services').insert(svc);
-      if(svcErr){q('eventMsg').textContent='Evento creado, pero falló el servicio: '+svcErr.message;return;}
+      const selectedTemplateIds=[...document.querySelectorAll('input[name="newServiceTemplate"]:checked')].map(x=>x.value);
+      const selectedTemplates=cachedServiceTemplates.filter(t=>selectedTemplateIds.includes(t.id));
+      if(selectedTemplates.length){
+        const serviceRows=selectedTemplates.map((t,i)=>({
+          event_id:event.id,
+          template_id:t.id,
+          customized:false,
+          name:t.name,
+          description:t.description||null,
+          duration_minutes:t.included_with_entry?null:t.duration_minutes,
+          price_cents:t.included_with_entry?null:t.price_cents,
+          currency:t.currency||'EUR',
+          included_with_entry:!!t.included_with_entry,
+          whatsapp_extra:t.whatsapp_extra||null,
+          sort_order:(i+1)*10,
+          active:true
+        }));
+        const { error:svcErr }=await db.from('services').insert(serviceRows);
+        if(svcErr){q('eventMsg').textContent='Evento creado, pero fallaron los servicios: '+svcErr.message;return;}
+      }
       q('eventMsg').textContent='Evento creado.';
       e.target.reset();
-      q('svcName').value='Pregunta al Tarot';q('svcIncluded').checked=true;syncPaidFields('svcIncluded','newPaidFields');
+      renderNewEventServiceChoices();
       showTab('events');
     });
 
@@ -713,26 +794,267 @@
       const { error }=await db.from('events').update(eventPayload).eq('id',id);
       if(error){q('editMsg').textContent=error.message;return;}
 
-      const included=q('editSvcIncluded').checked;
-      const servicePayload={
-        name:q('editSvcName').value.trim(),
-        duration_minutes:included?null:(q('editSvcDuration').value?Number(q('editSvcDuration').value):null),
-        price_cents:included?null:(q('editSvcPrice').value?Math.round(Number(q('editSvcPrice').value)*100):null),
-        included_with_entry:included,
-        description:included?'Incluida con la entrada':null,
-        active:true
-      };
-      const serviceId=q('editServiceId').value;
-      let svcError=null;
-      if(serviceId){
-        ({error:svcError}=await db.from('services').update(servicePayload).eq('id',serviceId));
-      }else{
-        ({error:svcError}=await db.from('services').insert({...servicePayload,event_id:id,sort_order:10}));
-      }
-      if(svcError){q('editMsg').textContent='Evento guardado, pero falló el servicio: '+svcError.message;return;}
       q('editMsg').textContent='Cambios guardados.';
+      await loadEvents();
+      currentEditEventId=id;
+      renderEditEventServices();
       showTab('events');
     });
+
+    function templateLabel(t){
+      const parts=[];
+      if(t.included_with_entry) parts.push('Incluido con la entrada');
+      if(!t.included_with_entry && t.duration_minutes) parts.push(t.duration_minutes+' min');
+      if(!t.included_with_entry && t.price_cents!=null) parts.push((t.price_cents/100).toFixed(0)+' €');
+      return t.name+(parts.length?' · '+parts.join(' · '):'');
+    }
+
+    function renderNewEventServiceChoices(){
+      const box=q('newEventServiceChoices');
+      if(!box)return;
+      const active=cachedServiceTemplates.filter(t=>t.active);
+      if(!active.length){
+        box.innerHTML='<div class="note">No hay servicios activos. Crealos desde la pestaña Servicios.</div>';
+        return;
+      }
+      box.innerHTML=active.map(t=>`
+        <label class="service-choice">
+          <input type="checkbox" name="newServiceTemplate" value="${t.id}">
+          <span><strong>${t.name}</strong><small>${templateLabel(t).replace(t.name,'').replace(/^ · /,'')}</small></span>
+        </label>`).join('');
+    }
+
+    function renderServiceTemplates(){
+      const box=q('serviceTemplatesList');
+      if(!box)return;
+      if(!cachedServiceTemplates.length){
+        box.innerHTML='<div class="note">Todavía no hay servicios en el catálogo.</div>';
+        return;
+      }
+      box.innerHTML=cachedServiceTemplates.map(t=>`
+        <div class="list-item ${t.active?'':'turn-done'}">
+          <div class="topbar" style="margin:0">
+            <div>
+              <strong>${t.name}</strong>
+              <div class="meta">${templateLabel(t).replace(t.name+' · ','').replace(t.name,'') || 'Sin precio ni duración'}</div>
+              ${t.description?'<div class="small">'+t.description+'</div>':''}
+              ${t.whatsapp_extra?'<div class="small">WhatsApp: '+t.whatsapp_extra+'</div>':''}
+            </div>
+            <div class="actions">
+              <span class="pill ${t.active?'pill-open':'pill-closed'}">${t.active?'ACTIVO':'INACTIVO'}</span>
+              <button class="btn btn-secondary" type="button" onclick="editServiceTemplate('${t.id}')">EDITAR</button>
+            </div>
+          </div>
+        </div>`).join('');
+    }
+
+    function renderAddEventServiceSelect(){
+      const select=q('addEventServiceSelect');
+      if(!select || !currentEditEventId)return;
+      const event=cachedEvents.find(e=>e.id===currentEditEventId);
+      const activeTemplateIds=new Set((event?.services||[]).filter(s=>s.active && s.template_id).map(s=>s.template_id));
+      const available=cachedServiceTemplates.filter(t=>t.active && !activeTemplateIds.has(t.id));
+      select.innerHTML='<option value="">Seleccionar…</option>'+available.map(t=>`<option value="${t.id}">${templateLabel(t)}</option>`).join('');
+      q('addEventServiceBtn').disabled=!available.length;
+    }
+
+    function renderEditEventServices(){
+      if(!currentEditEventId)return;
+      const event=cachedEvents.find(e=>e.id===currentEditEventId);
+      const box=q('editEventServicesList');
+      if(!event || !box)return;
+      const services=(event.services||[]).filter(s=>s.active).sort((x,y)=>(x.sort_order||10)-(y.sort_order||10));
+      if(!services.length){
+        box.innerHTML='<div class="note">Este evento todavía no tiene servicios.</div>';
+      }else{
+        box.innerHTML=services.map(s=>`
+          <div class="list-item">
+            <div class="topbar" style="margin:0">
+              <div>
+                <strong>${s.name}</strong>
+                <div class="meta">${serviceLabel(s)}</div>
+                ${s.customized?'<span class="pill pill-open" style="margin-top:6px">PERSONALIZADO</span>':''}
+              </div>
+              <div class="actions">
+                <button class="btn btn-secondary" type="button" onclick="customizeEventService('${s.id}')">PERSONALIZAR</button>
+                ${s.template_id && s.customized?'<button class="btn btn-quiet" type="button" onclick="restoreEventService(\''+s.id+'\')">RESTAURAR ORIGINAL</button>':''}
+                <button class="btn btn-danger" type="button" onclick="removeEventService('${s.id}')">QUITAR</button>
+              </div>
+            </div>
+          </div>`).join('');
+      }
+      renderAddEventServiceSelect();
+    }
+
+    async function loadServiceTemplates(){
+      const { data,error }=await db.from('service_templates').select('*').order('sort_order').order('name');
+      if(error){
+        if(q('serviceTemplatesList')) q('serviceTemplatesList').innerHTML='<div class="note">'+error.message+'</div>';
+        return;
+      }
+      cachedServiceTemplates=data||[];
+      renderServiceTemplates();
+      renderNewEventServiceChoices();
+      renderAddEventServiceSelect();
+    }
+
+    function resetServiceTemplateForm(){
+      q('serviceTemplateForm').reset();
+      q('serviceTemplateId').value='';
+      q('serviceTemplateActive').checked=true;
+      q('serviceTemplateFormTitle').textContent='Nuevo servicio';
+      q('serviceTemplateMsg').textContent='';
+      syncPaidFields('serviceTemplateIncluded','serviceTemplatePaidFields');
+    }
+
+    q('newServiceTemplateBtn').addEventListener('click',()=>{
+      resetServiceTemplateForm();
+      q('serviceTemplateFormBox').classList.remove('hidden');
+      q('serviceTemplateFormBox').scrollIntoView({behavior:'smooth',block:'center'});
+    });
+    q('cancelServiceTemplateBtn').addEventListener('click',()=>q('serviceTemplateFormBox').classList.add('hidden'));
+
+    window.editServiceTemplate=id=>{
+      const t=cachedServiceTemplates.find(x=>x.id===id);
+      if(!t)return;
+      q('serviceTemplateId').value=t.id;
+      q('serviceTemplateName').value=t.name||'';
+      q('serviceTemplateIncluded').checked=!!t.included_with_entry;
+      q('serviceTemplateDuration').value=t.duration_minutes||'';
+      q('serviceTemplatePrice').value=t.price_cents!=null?t.price_cents/100:'';
+      q('serviceTemplateDescription').value=t.description||'';
+      q('serviceTemplateWhatsapp').value=t.whatsapp_extra||'';
+      q('serviceTemplateActive').checked=!!t.active;
+      q('serviceTemplateFormTitle').textContent='Editar servicio';
+      q('serviceTemplateMsg').textContent='';
+      syncPaidFields('serviceTemplateIncluded','serviceTemplatePaidFields');
+      q('serviceTemplateFormBox').classList.remove('hidden');
+      q('serviceTemplateFormBox').scrollIntoView({behavior:'smooth',block:'center'});
+    };
+
+    q('serviceTemplateForm').addEventListener('submit',async e=>{
+      e.preventDefault();
+      q('serviceTemplateMsg').textContent='Guardando…';
+      const included=q('serviceTemplateIncluded').checked;
+      const payload={
+        name:q('serviceTemplateName').value.trim(),
+        description:q('serviceTemplateDescription').value.trim()||null,
+        duration_minutes:included?null:(q('serviceTemplateDuration').value?Number(q('serviceTemplateDuration').value):null),
+        price_cents:included?null:(q('serviceTemplatePrice').value?Math.round(Number(q('serviceTemplatePrice').value)*100):null),
+        included_with_entry:included,
+        whatsapp_extra:q('serviceTemplateWhatsapp').value.trim()||null,
+        active:q('serviceTemplateActive').checked,
+        updated_at:new Date().toISOString()
+      };
+      const id=q('serviceTemplateId').value;
+      const result=id
+        ? await db.from('service_templates').update(payload).eq('id',id)
+        : await db.from('service_templates').insert({...payload,sort_order:(cachedServiceTemplates.length+1)*10});
+      if(result.error){q('serviceTemplateMsg').textContent=result.error.message;return;}
+      q('serviceTemplateFormBox').classList.add('hidden');
+      await loadServiceTemplates();
+    });
+
+    q('addEventServiceBtn').addEventListener('click',async()=>{
+      if(!currentEditEventId)return;
+      const templateId=q('addEventServiceSelect').value;
+      const t=cachedServiceTemplates.find(x=>x.id===templateId);
+      if(!t)return;
+      const event=cachedEvents.find(e=>e.id===currentEditEventId);
+      const existing=(event?.services||[]).find(s=>s.template_id===templateId);
+      const payload={
+        event_id:currentEditEventId,
+        template_id:t.id,
+        customized:false,
+        name:t.name,
+        description:t.description||null,
+        duration_minutes:t.included_with_entry?null:t.duration_minutes,
+        price_cents:t.included_with_entry?null:t.price_cents,
+        currency:t.currency||'EUR',
+        included_with_entry:!!t.included_with_entry,
+        whatsapp_extra:t.whatsapp_extra||null,
+        active:true,
+        updated_at:new Date().toISOString()
+      };
+      const result=existing
+        ? await db.from('services').update(payload).eq('id',existing.id)
+        : await db.from('services').insert({...payload,sort_order:((event?.services||[]).length+1)*10});
+      if(result.error){alert(result.error.message);return;}
+      await loadEvents();
+      currentEditEventId=event.id;
+      renderEditEventServices();
+    });
+
+    window.customizeEventService=id=>{
+      const event=cachedEvents.find(e=>e.id===currentEditEventId);
+      const s=(event?.services||[]).find(x=>x.id===id);
+      if(!s)return;
+      q('eventSvcId').value=s.id;
+      q('eventSvcName').value=s.name||'';
+      q('eventSvcIncluded').checked=!!s.included_with_entry;
+      q('eventSvcDuration').value=s.duration_minutes||'';
+      q('eventSvcPrice').value=s.price_cents!=null?s.price_cents/100:'';
+      q('eventSvcDescription').value=s.description||'';
+      q('eventSvcWhatsapp').value=s.whatsapp_extra||'';
+      q('eventSvcMsg').textContent='';
+      syncPaidFields('eventSvcIncluded','eventSvcPaidFields');
+      q('editEventServiceBox').classList.remove('hidden');
+      q('editEventServiceBox').scrollIntoView({behavior:'smooth',block:'center'});
+    };
+
+    q('cancelEventServiceEditBtn').addEventListener('click',()=>q('editEventServiceBox').classList.add('hidden'));
+
+    q('eventServiceForm').addEventListener('submit',async e=>{
+      e.preventDefault();
+      const id=q('eventSvcId').value;
+      if(!id)return;
+      q('eventSvcMsg').textContent='Guardando…';
+      const included=q('eventSvcIncluded').checked;
+      const { error }=await db.from('services').update({
+        name:q('eventSvcName').value.trim(),
+        description:q('eventSvcDescription').value.trim()||null,
+        duration_minutes:included?null:(q('eventSvcDuration').value?Number(q('eventSvcDuration').value):null),
+        price_cents:included?null:(q('eventSvcPrice').value?Math.round(Number(q('eventSvcPrice').value)*100):null),
+        included_with_entry:included,
+        whatsapp_extra:q('eventSvcWhatsapp').value.trim()||null,
+        customized:true,
+        updated_at:new Date().toISOString()
+      }).eq('id',id);
+      if(error){q('eventSvcMsg').textContent=error.message;return;}
+      q('editEventServiceBox').classList.add('hidden');
+      await loadEvents();
+      renderEditEventServices();
+    });
+
+    window.restoreEventService=async id=>{
+      const event=cachedEvents.find(e=>e.id===currentEditEventId);
+      const s=(event?.services||[]).find(x=>x.id===id);
+      const t=cachedServiceTemplates.find(x=>x.id===s?.template_id);
+      if(!s || !t)return;
+      const { error }=await db.from('services').update({
+        name:t.name,
+        description:t.description||null,
+        duration_minutes:t.included_with_entry?null:t.duration_minutes,
+        price_cents:t.included_with_entry?null:t.price_cents,
+        currency:t.currency||'EUR',
+        included_with_entry:!!t.included_with_entry,
+        whatsapp_extra:t.whatsapp_extra||null,
+        customized:false,
+        active:true,
+        updated_at:new Date().toISOString()
+      }).eq('id',id);
+      if(error){alert(error.message);return;}
+      await loadEvents();
+      renderEditEventServices();
+    };
+
+    window.removeEventService=async id=>{
+      if(!confirm('¿Quitar este servicio del evento? El catálogo general no se modifica.'))return;
+      const { error }=await db.from('services').update({active:false,updated_at:new Date().toISOString()}).eq('id',id);
+      if(error){alert(error.message);return;}
+      await loadEvents();
+      renderEditEventServices();
+    };
 
     async function loadTrash(){
       const box=q('trashList');
