@@ -427,6 +427,7 @@
         return;
       }
       const code = data[0].code;
+      if (data[0].service_id) selectedServiceId = data[0].service_id;
       localStorage.setItem(eventTurnKey(activeEvent.id), code);
       if (selectedServiceId) localStorage.setItem(eventServiceKey(activeEvent.id), selectedServiceId);
       document.getElementById('queueStatus').textContent = '';
