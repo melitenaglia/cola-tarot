@@ -644,7 +644,7 @@
 
       const { data,error }=await db
         .from('turns')
-        .select('id,event_id,service_id,number,code,status,created_at,updated_at,services(name)')
+        .select('id,event_id,service_id,number,code,status,created_at,updated_at,services(name,duration_minutes,price_cents,included_with_entry)')
         .eq('event_id',currentTurnsEventId)
         .order('number',{ascending:true});
 
@@ -664,7 +664,17 @@
 
       const next=waiting[0]||null;
       q('nextTurnBig').textContent=next?turnShort(next.code):'—';
-      q('nextTurnSearch').textContent=next?'Buscar en WhatsApp: '+next.code:'No quedan turnos pendientes.';
+      if(next){
+        const svc=next.services;
+        const svcParts=[];
+        if(svc?.name) svcParts.push(svc.name);
+        if(!svc?.included_with_entry && svc?.duration_minutes) svcParts.push(svc.duration_minutes+' min');
+        q('nextTurnSearch').innerHTML=
+          (svcParts.length?'<strong>'+svcParts.join(' · ')+'</strong><br>':'')+
+          'Buscar en WhatsApp: '+next.code;
+      }else{
+        q('nextTurnSearch').textContent='No quedan turnos pendientes.';
+      }
 
       const copyBtn=q('copyNextCodeBtn');
       const attendBtn=q('attendNextBtn');
@@ -706,7 +716,7 @@
             <div class="topbar" style="margin:0">
               <div>
                 <strong class="turn-row-number">${turnShort(t.code)}</strong>
-                <div class="meta">${t.code}${t.services?.name?' · '+t.services.name:''}</div>
+                <div class="meta">${t.code}${t.services?.name?' · '+t.services.name:''}${t.services?.duration_minutes?' · '+t.services.duration_minutes+' min':''}</div>
               </div>
               <span class="turn-status ${attended?'is-done':'is-waiting'}">${turnStatusLabel(t.status)}</span>
             </div>
