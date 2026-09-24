@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Administración · Soy Amor Universal 111</title>
-  <link rel="stylesheet" href="../styles.css?v=20260921-11">
+  <link rel="stylesheet" href="../styles.css?v=20260924-1">
 </head>
 <body>
   <main class="container">
@@ -40,6 +40,11 @@
       </div>
 
       <section id="tab-events" class="tabpane">
+        <div id="eventFilterTabs" class="event-filter-tabs" role="tablist" aria-label="Filtrar eventos">
+          <button class="event-filter active" type="button" data-filter="today">HOY <span id="countToday">0</span></button>
+          <button class="event-filter" type="button" data-filter="future">FUTUROS <span id="countFuture">0</span></button>
+          <button class="event-filter" type="button" data-filter="past">REALIZADOS <span id="countPast">0</span></button>
+        </div>
         <div id="eventsList" class="list"></div>
       </section>
 
@@ -256,6 +261,7 @@
     let turnsRefreshTimer = null;
     let cachedUsers = [];
     let cachedTrash = [];
+    let eventListFilter = 'today';
 
     const q = id => document.getElementById(id);
     const localDT = (date,time) => new Date(date+'T'+time+':00').toISOString();
@@ -357,16 +363,43 @@
 
     q('logoutBtn').addEventListener('click',async()=>{await db.auth.signOut();location.reload();});
 
-    async function loadEvents(){
-      const { data, error } = await db.from('events')
-        .select('*, services(*), turns(id,number,code,status,created_at,updated_at,service_id)')
-        .is('deleted_at',null)
-        .order('starts_at',{ascending:false});
+    const localDateOnly = value => {
+      const d=new Date(value);
+      const pad=n=>String(n).padStart(2,'0');
+      return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+    };
+
+    function renderEventsList(){
       const box=q('eventsList');
-      if(error){box.innerHTML='<div class="note">'+error.message+'</div>';return;}
-      cachedEvents=data||[];
-      if(!cachedEvents.length){box.innerHTML='<div class="card"><p class="note">Todavía no hay eventos.</p></div>';return;}
-      box.innerHTML=cachedEvents.map(e=>`
+      const today=localDateOnly(new Date());
+
+      const todayEvents=cachedEvents.filter(e=>localDateOnly(e.starts_at)===today);
+      const futureEvents=cachedEvents.filter(e=>localDateOnly(e.starts_at)>today);
+      const pastEvents=cachedEvents.filter(e=>localDateOnly(e.starts_at)<today);
+
+      q('countToday').textContent=todayEvents.length;
+      q('countFuture').textContent=futureEvents.length;
+      q('countPast').textContent=pastEvents.length;
+
+      const byNewest=(x,y)=>new Date(y.starts_at)-new Date(x.starts_at);
+      todayEvents.sort(byNewest);
+      futureEvents.sort(byNewest);
+      pastEvents.sort(byNewest);
+
+      const groups={today:todayEvents,future:futureEvents,past:pastEvents};
+      const items=groups[eventListFilter]||[];
+
+      document.querySelectorAll('.event-filter').forEach(b=>{
+        b.classList.toggle('active',b.dataset.filter===eventListFilter);
+      });
+
+      if(!items.length){
+        const labels={today:'No hay eventos hoy.',future:'No hay eventos futuros.',past:'Todavía no hay eventos realizados.'};
+        box.innerHTML='<div class="card"><p class="note">'+labels[eventListFilter]+'</p></div>';
+        return;
+      }
+
+      box.innerHTML=items.map(e=>`
         <div class="card">
           <div class="topbar">
             <div>
@@ -391,6 +424,31 @@
           </div>
           ${e.services?.length ? '<div class="note" style="margin-top:12px">'+e.services.map(serviceLabel).join('<br>')+'</div>':''}
         </div>`).join('');
+    }
+
+    document.querySelectorAll('.event-filter').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        eventListFilter=btn.dataset.filter;
+        renderEventsList();
+      });
+    });
+
+    async function loadEvents(){
+      const { data, error } = await db.from('events')
+        .select('*, services(*), turns(id,number,code,status,created_at,updated_at,service_id)')
+        .is('deleted_at',null)
+        .order('starts_at',{ascending:false});
+      const box=q('eventsList');
+      if(error){box.innerHTML='<div class="note">'+error.message+'</div>';return;}
+      cachedEvents=data||[];
+      if(!cachedEvents.length){
+        q('countToday').textContent='0';
+        q('countFuture').textContent='0';
+        q('countPast').textContent='0';
+        box.innerHTML='<div class="card"><p class="note">Todavía no hay eventos.</p></div>';
+        return;
+      }
+      renderEventsList();
     }
 
     window.editEvent=id=>{
