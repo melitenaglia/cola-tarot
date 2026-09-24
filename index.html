@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Eventos · Soy Amor Universal 111</title>
-  <link rel="stylesheet" href="./styles.css?v=20260924-2">
+  <link rel="stylesheet" href="./styles.css?v=20260924-3">
 </head>
 <body>
   <main class="container">
@@ -113,6 +113,7 @@
     }
 
     function eventTurnKey(eventId){ return 'sau_turn_' + eventId; }
+    function eventServiceKey(eventId){ return 'sau_service_' + eventId; }
     function whatsappOpenedKey(eventId){ return 'sau_whatsapp_opened_' + eventId; }
 
     function splitTurnCode(fullCode) {
@@ -137,16 +138,43 @@
       return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
     }
 
+    function selectedService(){
+      return activeServices.find(s=>s.id===selectedServiceId) || (activeServices.length===1 ? activeServices[0] : null);
+    }
+
+    function serviceChoiceLabel(s){
+      const parts=[];
+      if(!s.included_with_entry && s.duration_minutes) parts.push(s.duration_minutes+' min');
+      if(!s.included_with_entry && s.price_cents!=null) parts.push((s.price_cents/100).toFixed(0)+' €');
+      return s.name + (parts.length ? ' · '+parts.join(' · ') : '');
+    }
+
     function buildWhatsAppUrl(fullCode) {
       const phone = (settings?.whatsapp_number || '').replace(/\D/g,'');
       const parts = splitTurnCode(fullCode);
-      const msg = `Código: ${fullCode}
+      const svc = selectedService();
+      const lines = [
+        `Código: ${fullCode}`,
+        '',
+        'Hola! Quiero reservar mi turno.',
+        ''
+      ];
 
-Hola! Quiero sumarme a la lista de espera para hacer mi *Pregunta al Tarot*.
+      if (svc) {
+        lines.push(`*Lectura elegida: ${svc.name}*`);
+        if (!svc.included_with_entry && svc.duration_minutes) lines.push(`Duración: ${svc.duration_minutes} min`);
+        if (!svc.included_with_entry && svc.price_cents != null) lines.push(`Precio: ${(svc.price_cents/100).toFixed(0)} €`);
+        lines.push('');
+      }
 
-*Mi turno es ${parts.turn}*
+      lines.push(`*Mi turno es ${parts.turn}*`);
 
-Confirmo mi lugar en la lista de espera.`;
+      if (svc?.whatsapp_extra) {
+        lines.push('', svc.whatsapp_extra);
+      }
+
+      lines.push('', 'Confirmo mi lugar en la lista de espera.');
+      const msg = lines.join('\n');
       return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
     }
 
@@ -250,9 +278,28 @@ Confirmo mi lugar en la lista de espera.`;
           : '';
       } else {
         box.innerHTML = '<label>Elegí tu lectura<select id="serviceSelect"><option value="">Seleccionar…</option>' +
-          activeServices.map(s => `<option value="${s.id}">${s.name}</option>`).join('') +
-          '</select></label>';
-        document.getElementById('serviceSelect').addEventListener('change', e => selectedServiceId = e.target.value || null);
+          activeServices.map(s => `<option value="${s.id}">${serviceChoiceLabel(s)}</option>`).join('') +
+          '</select></label><div id="serviceChoiceDetail" class="service-choice-detail hidden"></div>';
+
+        const select = document.getElementById('serviceSelect');
+        const detail = document.getElementById('serviceChoiceDetail');
+        select.addEventListener('change', e => {
+          selectedServiceId = e.target.value || null;
+          const svc = selectedService();
+          if (!svc) {
+            detail.classList.add('hidden');
+            detail.innerHTML = '';
+            return;
+          }
+          const parts=[];
+          if (!svc.included_with_entry && svc.duration_minutes) parts.push(svc.duration_minutes+' min');
+          if (!svc.included_with_entry && svc.price_cents!=null) parts.push((svc.price_cents/100).toFixed(0)+' €');
+          detail.innerHTML =
+            '<strong>'+svc.name+'</strong>' +
+            (parts.length?'<div class="meta">'+parts.join(' · ')+'</div>':'') +
+            (svc.description?'<div class="note">'+svc.description+'</div>':'');
+          detail.classList.remove('hidden');
+        });
       }
     }
 
@@ -350,6 +397,12 @@ Confirmo mi lugar en la lista de espera.`;
 
     function restoreTurn() {
       if (!activeEvent) return;
+      const storedServiceId = localStorage.getItem(eventServiceKey(activeEvent.id));
+      if (storedServiceId && activeServices.some(s=>s.id===storedServiceId)) {
+        selectedServiceId = storedServiceId;
+        const select = document.getElementById('serviceSelect');
+        if (select) select.value = storedServiceId;
+      }
       const code = localStorage.getItem(eventTurnKey(activeEvent.id));
       if (code) showTurn(code);
     }
@@ -375,6 +428,7 @@ Confirmo mi lugar en la lista de espera.`;
       }
       const code = data[0].code;
       localStorage.setItem(eventTurnKey(activeEvent.id), code);
+      if (selectedServiceId) localStorage.setItem(eventServiceKey(activeEvent.id), selectedServiceId);
       document.getElementById('queueStatus').textContent = '';
       showTurn(code);
     });
