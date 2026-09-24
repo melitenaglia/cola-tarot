@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Administración · Soy Amor Universal 111</title>
-  <link rel="stylesheet" href="../styles.css?v=20260924-5">
+  <link rel="stylesheet" href="../styles.css?v=20260924-6">
 </head>
 <body>
   <main class="container">
@@ -54,13 +54,20 @@
 
       <section id="tab-turns" class="tabpane hidden">
         <div class="card">
-          <div class="topbar">
-            <div>
-              <div class="small">GESTIÓN DE TURNOS</div>
-              <h2 id="turnsEventName" style="margin:4px 0 0"></h2>
-              <div id="turnsEventMeta" class="meta"></div>
+          <div class="topbar turns-admin-head">
+            <div class="turns-admin-event">
+              <img id="turnsEventThumb" class="admin-event-thumb turns-event-thumb hidden" alt="" loading="lazy" onerror="this.classList.add('hidden')">
+              <div>
+                <div class="small">GESTIÓN DE TURNOS</div>
+                <h2 id="turnsEventName" style="margin:4px 0 0"></h2>
+                <div id="turnsEventMeta" class="meta"></div>
+                <span id="turnsQueueStatus" class="pill pill-closed" style="margin-top:7px">LISTA DE ESPERA CERRADA</span>
+              </div>
             </div>
-            <button id="refreshTurnsBtn" class="btn btn-secondary" type="button">↻ ACTUALIZAR</button>
+            <div class="actions turns-admin-actions">
+              <button id="turnsQueueBtn" class="btn btn-ok" type="button">ABRIR LISTA</button>
+              <button id="refreshTurnsBtn" class="btn btn-secondary" type="button">↻ ACTUALIZAR</button>
+            </div>
           </div>
 
           <div id="turnsLastUpdated" class="small" style="text-align:right;margin-top:2px"></div>
@@ -518,11 +525,14 @@
 
       box.innerHTML=items.map(e=>`
         <div class="card">
-          <div class="topbar">
-            <div>
-              <span class="pill ${e.queue_status==='open'?'pill-open':'pill-closed'}">${e.queue_status==='open'?'LISTA DE ESPERA ABIERTA':'LISTA DE ESPERA CERRADA'}</span>
-              <h2 style="margin:10px 0 5px">${e.name}</h2>
-              <div class="meta">${eventSpan(e.starts_at,e.ends_at)}${e.location_name?' · '+e.location_name:''}<br>Código: ${e.event_code}</div>
+          <div class="topbar admin-event-card-head">
+            <div class="admin-event-card-main">
+              ${e.image_url?'<img class="admin-event-thumb" src="'+e.image_url+'" alt="" loading="lazy" onerror="this.remove()">':''}
+              <div class="admin-event-card-copy">
+                <span class="pill ${e.queue_status==='open'?'pill-open':'pill-closed'}">${e.queue_status==='open'?'LISTA DE ESPERA ABIERTA':'LISTA DE ESPERA CERRADA'}</span>
+                <h2 style="margin:10px 0 5px">${e.name}</h2>
+                <div class="meta">${eventSpan(e.starts_at,e.ends_at)}${e.location_name?' · '+e.location_name:''}<br>Código: ${e.event_code}</div>
+              </div>
             </div>
             <div class="actions">
               <button class="btn btn-secondary" onclick="editEvent('${e.id}')">EDITAR</button>
@@ -670,8 +680,9 @@
 
     window.toggleQueue=async(id,open)=>{
       const { error } = await db.rpc('set_event_queue',{p_event_id:id,p_open:open});
-      if(error) alert(error.message);
+      if(error){ alert(error.message); return false; }
       await loadEvents();
+      return true;
     };
     const turnShort = code => {
       const m=String(code||'').match(/(T\d+)$/i);
@@ -738,6 +749,28 @@
       if(event){
         q('turnsEventName').textContent=event.name;
         q('turnsEventMeta').textContent=eventSpan(event.starts_at,event.ends_at)+(event.location_name?' · '+event.location_name:'');
+        const thumb=q('turnsEventThumb');
+        if(event.image_url){
+          thumb.src=event.image_url;
+          thumb.classList.remove('hidden');
+        }else{
+          thumb.removeAttribute('src');
+          thumb.classList.add('hidden');
+        }
+        const open=event.queue_status==='open';
+        const status=q('turnsQueueStatus');
+        status.textContent=open?'LISTA DE ESPERA ABIERTA':'LISTA DE ESPERA CERRADA';
+        status.className='pill '+(open?'pill-open':'pill-closed');
+        const queueBtn=q('turnsQueueBtn');
+        queueBtn.textContent=open?'CERRAR LISTA':'ABRIR LISTA';
+        queueBtn.className='btn '+(open?'btn-danger':'btn-ok');
+        queueBtn.onclick=async()=>{
+          queueBtn.disabled=true;
+          await toggleQueue(event.id,!open);
+          currentTurnsEventId=event.id;
+          await loadTurnsPanel();
+          queueBtn.disabled=false;
+        };
       }
 
       const { data,error }=await db
