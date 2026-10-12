@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Administración · Soy Amor Universal 111</title>
-  <link rel="stylesheet" href="../styles.css?v=20260924-6">
+  <link rel="stylesheet" href="../styles.css?v=20261012-1">
 </head>
 <body>
   <main class="container">
@@ -12,10 +12,33 @@
       <h1>Administración</h1>
       <p class="meta">Ingresá con tu email y contraseña.</p>
       <form id="loginForm" class="stack">
-        <label>Email<input id="email" type="email" required></label>
-        <label>Contraseña<input id="password" type="password" required></label>
+        <label>Email<input id="email" type="email" required autocomplete="email"></label>
+        <label>Contraseña<input id="password" type="password" required autocomplete="current-password"></label>
         <button class="btn btn-primary" type="submit">ENTRAR</button>
+        <button id="forgotPasswordBtn" class="btn btn-quiet auth-link-btn" type="button">¿Olvidaste tu contraseña?</button>
         <div id="loginMsg" class="note"></div>
+      </form>
+    </section>
+
+    <section id="forgotPasswordCard" class="card login-card hidden">
+      <button id="backToLoginBtn" class="btn btn-quiet auth-back-btn" type="button">← Volver</button>
+      <h1>Restablecer contraseña</h1>
+      <p class="meta">Ingresá el email de tu usuario. Te enviaremos un enlace para crear una nueva contraseña.</p>
+      <form id="forgotPasswordForm" class="stack">
+        <label>Email<input id="resetEmail" type="email" required autocomplete="email"></label>
+        <button class="btn btn-primary" type="submit">ENVIAR ENLACE</button>
+        <div id="forgotPasswordMsg" class="note"></div>
+      </form>
+    </section>
+
+    <section id="newPasswordCard" class="card login-card hidden">
+      <h1>Nueva contraseña</h1>
+      <p class="meta">Elegí una nueva contraseña para volver a entrar al panel.</p>
+      <form id="newPasswordForm" class="stack">
+        <label>Nueva contraseña<input id="newPassword" type="password" minlength="8" required autocomplete="new-password"></label>
+        <label>Repetir contraseña<input id="newPasswordConfirm" type="password" minlength="8" required autocomplete="new-password"></label>
+        <button class="btn btn-primary" type="submit">GUARDAR CONTRASEÑA</button>
+        <div id="newPasswordMsg" class="note"></div>
       </form>
     </section>
 
@@ -449,18 +472,80 @@
     q('serviceTemplateIncluded').addEventListener('change',()=>syncPaidFields('serviceTemplateIncluded','serviceTemplatePaidFields'));
     q('eventSvcIncluded').addEventListener('change',()=>syncPaidFields('eventSvcIncluded','eventSvcPaidFields'));
 
+    const recoveryRedirectUrl = () => {
+      const url=new URL(window.location.href);
+      url.hash='';
+      url.search='';
+      url.searchParams.set('recovery','1');
+      return url.toString();
+    };
+
+    const isRecoveryMode = () =>
+      new URLSearchParams(window.location.search).get('recovery')==='1' ||
+      window.location.hash.includes('type=recovery');
+
+    function hideAuthCards(){
+      q('loginCard').classList.add('hidden');
+      q('forgotPasswordCard').classList.add('hidden');
+      q('newPasswordCard').classList.add('hidden');
+    }
+
+    function showLoginCard(message=''){
+      hideAuthCards();
+      q('app').classList.add('hidden');
+      q('loginCard').classList.remove('hidden');
+      q('loginMsg').textContent=message;
+    }
+
+    function showForgotPasswordCard(){
+      hideAuthCards();
+      q('app').classList.add('hidden');
+      q('forgotPasswordCard').classList.remove('hidden');
+      q('forgotPasswordMsg').textContent='';
+      q('resetEmail').value=q('email').value.trim();
+      setTimeout(()=>q('resetEmail').focus(),0);
+    }
+
+    function showNewPasswordCard(){
+      hideAuthCards();
+      q('app').classList.add('hidden');
+      q('newPasswordCard').classList.remove('hidden');
+      q('newPassword').value='';
+      q('newPasswordConfirm').value='';
+      q('newPasswordMsg').textContent='';
+      setTimeout(()=>q('newPassword').focus(),0);
+    }
+
     async function ensureAuth(){
       const { data } = await db.auth.getSession();
       session = data.session;
-      if(!session){ q('loginCard').classList.remove('hidden'); q('app').classList.add('hidden'); return; }
+
+      if(isRecoveryMode()){
+        if(session){
+          showNewPasswordCard();
+          return;
+        }
+        showLoginCard('El enlace para restablecer la contraseña no es válido o ya venció.');
+        return;
+      }
+
+      if(!session){
+        const params=new URLSearchParams(window.location.search);
+        const changed=params.get('password')==='updated';
+        showLoginCard(changed?'Contraseña actualizada. Ya podés ingresar con la nueva contraseña.':'');
+        if(changed) history.replaceState({},'',window.location.pathname);
+        return;
+      }
+
       const { data: p } = await db.from('profiles').select('*').eq('user_id',session.user.id).maybeSingle();
       profile = p;
       if(!profile || !profile.active || !['admin','staff'].includes(profile.role)){
         await db.auth.signOut();
-        q('loginMsg').textContent='Tu usuario todavía no tiene acceso al panel.';
+        showLoginCard('Tu usuario todavía no tiene acceso al panel.');
         return;
       }
-      q('loginCard').classList.add('hidden'); q('app').classList.remove('hidden');
+      hideAuthCards();
+      q('app').classList.remove('hidden');
       q('whoami').textContent=(profile.display_name||session.user.email)+' · '+profile.role;
       if(profile.role!=='admin'){
         document.querySelector('[data-tab="users"]').classList.add('hidden');
@@ -477,6 +562,55 @@
       if(error){ q('loginMsg').textContent=error.message; return; }
       q('loginMsg').textContent='';
       await ensureAuth();
+    });
+
+    q('forgotPasswordBtn').addEventListener('click',showForgotPasswordCard);
+    q('backToLoginBtn').addEventListener('click',()=>showLoginCard());
+
+    q('forgotPasswordForm').addEventListener('submit',async e=>{
+      e.preventDefault();
+      const email=q('resetEmail').value.trim();
+      q('forgotPasswordMsg').textContent='Enviando…';
+      const { error }=await db.auth.resetPasswordForEmail(email,{
+        redirectTo:recoveryRedirectUrl()
+      });
+      if(error){
+        q('forgotPasswordMsg').textContent=
+          error.message?.toLowerCase().includes('rate')
+            ? 'Se hicieron demasiados intentos. Esperá unos minutos y probá de nuevo.'
+            : 'No pudimos enviar el correo. Probá nuevamente en unos minutos.';
+        return;
+      }
+      q('forgotPasswordMsg').innerHTML=
+        '<strong>Revisá tu correo.</strong><br>Si existe una cuenta con ese email, vas a recibir un enlace para crear una nueva contraseña. Revisá también Spam o Correo no deseado.';
+    });
+
+    q('newPasswordForm').addEventListener('submit',async e=>{
+      e.preventDefault();
+      const password=q('newPassword').value;
+      const confirmPassword=q('newPasswordConfirm').value;
+      if(password.length<8){
+        q('newPasswordMsg').textContent='La contraseña debe tener al menos 8 caracteres.';
+        return;
+      }
+      if(password!==confirmPassword){
+        q('newPasswordMsg').textContent='Las contraseñas no coinciden.';
+        return;
+      }
+      q('newPasswordMsg').textContent='Guardando…';
+      const { error }=await db.auth.updateUser({password});
+      if(error){
+        q('newPasswordMsg').textContent='No pudimos actualizar la contraseña. Pedí un nuevo enlace e intentá otra vez.';
+        return;
+      }
+      await db.auth.signOut();
+      window.location.replace(window.location.pathname+'?password=updated');
+    });
+
+    db.auth.onAuthStateChange((event)=>{
+      if(event==='PASSWORD_RECOVERY'){
+        showNewPasswordCard();
+      }
     });
 
     q('logoutBtn').addEventListener('click',async()=>{await db.auth.signOut();location.reload();});
