@@ -1,0 +1,52 @@
+name: Comprobar actividad de Supabase
+
+on:
+  schedule:
+    # Cuatro consultas diarias, en UTC; pueden retrasarse por carga de GitHub Actions.
+    - cron: '17 5,11,17,23 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  database-health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Descargar el repositorio
+        uses: actions/checkout@v4
+
+      - name: Consultar un registro público real de Supabase
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+
+          async function main() {
+            const config = fs.readFileSync('config.js', 'utf8');
+            const url = config.match(/supabaseUrl:\s*["']([^"']+)["']/)?.[1];
+            const key = config.match(/supabaseKey:\s*["']([^"']+)["']/)?.[1];
+            if (!url || !key || !key.startsWith('sb_publishable_')) {
+              throw new Error('No se encontró la URL o la clave pública de Supabase en config.js');
+            }
+
+            // La tabla app_settings es la que consulta la página pública.
+            // No requiere credenciales administrativas ni realiza escrituras.
+            const endpoint = url.replace(/\/$/, '') + '/rest/v1/app_settings?select=id&id=eq.1&limit=1';
+            const response = await fetch(endpoint, {
+              headers: { apikey: key, Accept: 'application/json' },
+              signal: AbortSignal.timeout(15000)
+            });
+            if (!response.ok) {
+              throw new Error('Supabase no respondió correctamente: HTTP ' + response.status);
+            }
+            const rows = await response.json();
+            console.log('Consulta completada. Filas recibidas:', rows.length);
+          }
+
+          main().catch(error => {
+            console.error('Comprobación fallida:', error.message);
+            process.exitCode = 1;
+          });
+          NODE
