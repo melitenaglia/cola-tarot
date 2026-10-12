@@ -232,6 +232,8 @@
         settings.review_prompt || 'Si te gustó la experiencia, podés dejar una reseña.';
 
       const links = document.getElementById('socialLinks');
+      links.replaceChildren();
+      document.getElementById('reviewBlock').classList.add('hidden');
       if (settings.instagram_url) links.insertAdjacentHTML('beforeend', `<a class="btn btn-secondary" href="${settings.instagram_url}" target="_blank" rel="noopener">Instagram</a>`);
       if (settings.website_url) links.insertAdjacentHTML('beforeend', `<a class="btn btn-secondary" href="${settings.website_url}" target="_blank" rel="noopener">Web</a>`);
       if (settings.google_review_url) {
