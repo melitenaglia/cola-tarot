@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Eventos · Soy Amor Universal 111</title>
-  <link rel="stylesheet" href="./styles.css?v=20260924-5">
+  <link rel="stylesheet" href="./styles.css?v=20261012-1">
 </head>
 <body>
   <main class="container">
@@ -66,6 +66,12 @@
 
       <button id="takeTurnBtn" class="btn btn-primary" style="width:100%;margin-top:18px">SACAR MI TURNO</button>
       <div id="queueStatus" class="note" style="margin-top:12px"></div>
+    </section>
+
+    <section id="serviceUnavailable" class="card hidden" role="alert" aria-live="polite">
+      <h2>No podemos cargar los eventos en este momento</h2>
+      <p class="meta">Hay un problema temporal de conexión con el servicio de eventos. Por favor, intentá nuevamente. Si estás en un evento, consultá directamente con la organización.</p>
+      <button id="retryPublicBtn" class="btn btn-secondary" type="button">↻ VOLVER A INTENTAR</button>
     </section>
 
     <section id="noActive" class="card no-active-card">
@@ -347,9 +353,14 @@
         .eq('status','published')
         .order('starts_at',{ascending:true});
       if (error) {
-        document.getElementById('upcomingList').innerHTML = '<div class="note">No pudimos cargar los eventos.</div>';
+        document.getElementById('serviceUnavailable').classList.remove('hidden');
+        document.getElementById('activeEventCard').classList.add('hidden');
+        document.getElementById('noActive').classList.add('hidden');
+        document.getElementById('upcomingSection').classList.add('hidden');
+        document.getElementById('upcomingToggleWrap').classList.add('hidden');
         return;
       }
+      document.getElementById('serviceUnavailable').classList.add('hidden');
 
       if(requestedEventId){
         const detailEvent=(events||[]).find(e=>e.id===requestedEventId);
@@ -596,9 +607,30 @@
       }
     });
 
+    document.getElementById('retryPublicBtn').addEventListener('click',async()=>{
+      const button=document.getElementById('retryPublicBtn');
+      button.disabled=true;
+      button.textContent='Comprobando conexión…';
+      try {
+        await loadSettings();
+        await loadEvents();
+      } catch (error) {
+        document.getElementById('serviceUnavailable').classList.remove('hidden');
+      } finally {
+        button.disabled=false;
+        button.textContent='↻ VOLVER A INTENTAR';
+      }
+    });
+
     (async () => {
-      await loadSettings();
-      await loadEvents();
+      try {
+        await loadSettings();
+        await loadEvents();
+      } catch(error) {
+        document.getElementById('serviceUnavailable').classList.remove('hidden');
+        document.getElementById('noActive').classList.add('hidden');
+        document.getElementById('upcomingSection').classList.add('hidden');
+      }
     })();
   </script>
 </body>
