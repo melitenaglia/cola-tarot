@@ -18,6 +18,16 @@
         <button id="forgotPasswordBtn" class="btn btn-quiet auth-link-btn" type="button">¿Olvidaste tu contraseña?</button>
         <div id="loginMsg" class="note"></div>
       </form>
+      <button id="serviceHelpToggle" class="btn btn-quiet auth-link-btn" type="button" aria-expanded="false" aria-controls="serviceHelp">¿El servicio no funciona?</button>
+      <div id="serviceHelp" class="hidden" role="status" aria-live="polite" style="margin-top:10px;padding:14px;border:1px solid var(--line);border-radius:8px">
+        <strong style="display:block;margin-bottom:6px">Reactivar el servicio</strong>
+        <p id="serviceMsg" class="note" style="margin:0 0 12px">Si Supabase se pausó por inactividad, podés reactivarlo sin modificar los eventos ni los turnos.</p>
+        <div class="stack" style="gap:8px">
+          <a class="btn btn-secondary" href="https://supabase.com/dashboard/project/yczzfhfyrkmgqsblmeze" target="_blank" rel="noopener noreferrer">ABRIR SUPABASE PARA REACTIVAR ↗</a>
+          <button id="checkServiceBtn" class="btn btn-quiet" type="button">↻ COMPROBAR CONEXIÓN</button>
+        </div>
+        <p class="note" style="margin:9px 0 0">Entrá con la cuenta autorizada de Supabase, pulsá «Resume project» si aparece y volvé acá para comprobar la conexión. Este acceso requiere permisos en Supabase.</p>
+      </div>
     </section>
 
     <section id="forgotPasswordCard" class="card login-card hidden">
@@ -516,6 +526,49 @@
       setTimeout(()=>q('newPassword').focus(),0);
     }
 
+    function showServiceHelp(message=''){
+      q('serviceHelp').classList.remove('hidden');
+      q('serviceHelpToggle').setAttribute('aria-expanded','true');
+      if(message) q('serviceMsg').textContent=message;
+    }
+
+    async function checkServiceHealth(showSuccess=false){
+      const btn=q('checkServiceBtn');
+      btn.disabled=true;
+      if(showSuccess) showServiceHelp('Comprobando si Supabase responde…');
+      let timeoutId;
+      try{
+        const request=db.from('app_settings').select('id').eq('id',1).limit(1);
+        const timeout=new Promise((_,reject)=>{
+          timeoutId=setTimeout(()=>reject(new Error('Tiempo de espera agotado')),10000);
+        });
+        const {error}=await Promise.race([request,timeout]);
+        if(error) throw error;
+        if(showSuccess) showServiceHelp('✓ Conexión restablecida. Ya podés ingresar al panel.');
+        else {
+          q('serviceHelp').classList.add('hidden');
+          q('serviceHelpToggle').setAttribute('aria-expanded','false');
+        }
+        return true;
+      }catch(error){
+        showServiceHelp('No pudimos comunicarnos con Supabase. Es posible que el proyecto esté pausado. Abrí Supabase para comprobarlo y reactivarlo si corresponde.');
+        return false;
+      }finally{
+        clearTimeout(timeoutId);
+        btn.disabled=false;
+      }
+    }
+
+    q('serviceHelpToggle').addEventListener('click',()=>{
+      const isHidden=q('serviceHelp').classList.contains('hidden');
+      q('serviceHelp').classList.toggle('hidden',!isHidden);
+      q('serviceHelpToggle').setAttribute('aria-expanded',String(isHidden));
+    });
+    q('checkServiceBtn').addEventListener('click',async()=>{
+      const ok=await checkServiceHealth(true);
+      if(ok) await ensureAuth();
+    });
+
     async function ensureAuth(){
       const { data } = await db.auth.getSession();
       session = data.session;
@@ -537,7 +590,12 @@
         return;
       }
 
-      const { data: p } = await db.from('profiles').select('*').eq('user_id',session.user.id).maybeSingle();
+      const { data: p, error: profileError } = await db.from('profiles').select('*').eq('user_id',session.user.id).maybeSingle();
+      if(profileError){
+        showLoginCard('No pudimos comprobar el acceso al panel. Revisá la conexión con Supabase.');
+        showServiceHelp('No se pudo consultar el proyecto. Si está pausado, abrí Supabase para reactivarlo y luego comprobá la conexión.');
+        return;
+      }
       profile = p;
       if(!profile || !profile.active || !['admin','staff'].includes(profile.role)){
         await db.auth.signOut();
@@ -559,7 +617,11 @@
       e.preventDefault();
       q('loginMsg').textContent='Ingresando…';
       const { error } = await db.auth.signInWithPassword({email:q('email').value.trim(),password:q('password').value});
-      if(error){ q('loginMsg').textContent=error.message; return; }
+      if(error){
+        q('loginMsg').textContent=error.message;
+        if(/fetch|network|timeout|unavailable|5\\d\\d|conexi[oó]n/i.test(error.message||'')) checkServiceHealth();
+        return;
+      }
       q('loginMsg').textContent='';
       await ensureAuth();
     });
@@ -1617,7 +1679,11 @@
       await loadUsers();
     });
 
-    ensureAuth();
+    ensureAuth().catch(()=>{
+      showLoginCard('No pudimos conectar con el panel.');
+      showServiceHelp('Comprobá la conexión con Supabase. Si el proyecto está pausado, abrilo para reactivarlo.');
+    });
+    checkServiceHealth();
   </script>
 </body>
 </html>
