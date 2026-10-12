@@ -1358,3 +1358,25 @@ body.has-open-queue #upcomingSection .upcoming-event-item{
     width:100%;
   }
 }
+
+
+/* Recuperación de contraseña */
+.auth-link-btn{
+  width:100%;
+  min-height:34px;
+  margin-top:-3px;
+  font-size:12px;
+  text-decoration:underline;
+  text-underline-offset:3px;
+}
+.auth-back-btn{
+  min-height:32px;
+  padding:4px 0;
+  margin-bottom:3px;
+  justify-content:flex-start;
+}
+#forgotPasswordMsg strong,
+#newPasswordMsg strong{
+  color:var(--ink);
+  font-weight:600;
+}
