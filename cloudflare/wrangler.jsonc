@@ -1,0 +1,9 @@
+{
+  "name": "soy-amor-eventos-staging",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-12",
+  "workers_dev": true,
+  "observability": {
+    "enabled": true
+  }
+}
