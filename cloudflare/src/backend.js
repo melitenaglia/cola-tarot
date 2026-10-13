@@ -221,6 +221,38 @@ export async function handleAPI(request,env,url) {
    const a=await currentUser(request,db);
    return result({session:a?{user:{id:a.id,email:a.email},access_token:'cookie-session'}:null});
   }
+  // Migración de identidad UNA SOLA VEZ: verifica credenciales en Supabase
+  // y guarda un hash independiente en D1. Ningún token de Supabase se conserva.
+  if(path==='/api/auth/migrate'&&method==='POST'){
+   const b=await getBody(request),email=String(b.email||'').trim().toLowerCase(),password=String(b.password||'');
+   if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)||password.length<6||password.length>128)return fail('Credenciales incorrectas',401);
+   const prior=await db.prepare('SELECT id,password_hash FROM admins WHERE email=?').bind(email).first();
+   if(prior?.password_hash)return fail('Credenciales incorrectas',401);
+   const key=await sha('login:'+email+':'+(request.headers.get('cf-connecting-ip')||'unknown'));
+   const prev=await db.prepare('SELECT attempts,window_start FROM login_attempts WHERE identifier=?').bind(key).first();
+   if(prev&&Date.now()-prev.window_start<900000&&prev.attempts>=7)return fail('Demasiados intentos. Probá más tarde.',429);
+   const source='https://yczzfhfyrkmgqsblmeze.supabase.co';
+   const publishable='sb_publishable_uEqn4LVE35RXydGiTDQ-0g_nRBKgaWz';
+   const signed=await fetch(source+'/auth/v1/token?grant_type=password',{
+     method:'POST',headers:{'content-type':'application/json',apikey:publishable},
+     body:JSON.stringify({email,password}),signal:AbortSignal.timeout(12000)
+   });
+   if(!signed.ok)return fail('Credenciales incorrectas',401);
+   const credentials=await signed.json();
+   if(!credentials?.access_token||!credentials?.user?.id||String(credentials.user.email||'').toLowerCase()!==email)return fail('No se pudo validar el usuario',401);
+   const profileResponse=await fetch(source+'/rest/v1/profiles?select=user_id,email,display_name,role,active&user_id=eq.'+encodeURIComponent(credentials.user.id),{
+    headers:{apikey:publishable,authorization:'Bearer '+credentials.access_token,accept:'application/json'},
+    signal:AbortSignal.timeout(12000)
+   });
+   if(!profileResponse.ok)return fail('No se pudieron verificar los permisos',403);
+   const profiles=await profileResponse.json(),p=profiles?.find(x=>x.user_id===credentials.user.id&&x.active===true&&['admin','staff'].includes(x.role)&&String(x.email||'').toLowerCase()===email);
+   if(!p)return fail('El usuario no tiene acceso al panel',403);
+   const ps=salt(),ph=await passhash(password,ps),id=crypto.randomUUID();
+   if(!prior)await db.prepare('INSERT OR IGNORE INTO admins(id,email,display_name,role,active) VALUES(?,?,?,?,1)').bind(id,email,String(p.display_name||'').slice(0,120),p.role).run();
+   const saved=await db.prepare('UPDATE admins SET display_name=?,role=?,active=1,password_salt=?,password_hash=?,updated_at=CURRENT_TIMESTAMP WHERE email=? AND password_hash IS NULL RETURNING id').bind(String(p.display_name||'').slice(0,120),p.role,ps,ph,email).first();
+   if(!saved)return fail('La cuenta ya está activada. Iniciá sesión de nuevo.',409);
+   return result({ok:true,migrated:true});
+  }
   if(path==='/api/auth/login'&&method==='POST'){
    const b=await getBody(request),email=String(b.email||'').trim().toLowerCase(),password=String(b.password||'');
    const key=await sha('login:'+email+':'+(request.headers.get('cf-connecting-ip')||'unknown'));
