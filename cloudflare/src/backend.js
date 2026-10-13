@@ -45,6 +45,7 @@ function filtersSQL(table,filters,bind) {
   if(!safeName(table,f.key))throw Error('Campo de filtro no permitido');
   if(f.op==='eq'){sql+=' AND '+f.key+' = ?';bind.push(f.value===true?1:f.value===false?0:f.value);}
   else if(f.op==='is'&&f.value===null)sql+=' AND '+f.key+' IS NULL';
+  else if(f.op==='not'&&f.value===null)sql+=' AND '+f.key+' IS NOT NULL';
   else throw Error('Operador no permitido');
  }
  return sql;
@@ -53,9 +54,8 @@ async function readTable(db,table,q,admin) {
  if(!tables.includes(table))throw Error('Tabla no disponible');
  if(!admin&&!['events','services','app_settings'].includes(table))throw Error('Acceso restringido');
  if(table==='profiles'){
-  if(admin.role!=='admin')throw Error('Acceso restringido');
-  const rows=(await db.prepare('SELECT id,email,display_name,role,active,created_at,updated_at FROM admins ORDER BY created_at').all()).results;
-  return rows.map(x=>normalize('admins',x));
+  const rows=admin.role==='admin'?(await db.prepare('SELECT id,email,display_name,role,active,created_at,updated_at FROM admins ORDER BY created_at').all()).results:[await db.prepare('SELECT id,email,display_name,role,active,created_at,updated_at FROM admins WHERE id=?').bind(admin.id).first()];
+  return rows.filter(x=>x&&(admin.role==='admin'||x.id===admin.id)).map(x=>normalize('admins',x));
  }
  const binds=[];
  let where='WHERE 1=1';
@@ -70,9 +70,9 @@ async function readTable(db,table,q,admin) {
  const lim=Math.min(Math.max(Number(q.limit)||500,1),1000);
  const publicColumns=table==='events'&&!admin ? 'id,name,event_code,description,starts_at,ends_at,queue_opens_at,queue_closes_at,location_name,location_address,maps_url,official_url,image_url,status,queue_status,show_upcoming,current_number,now_serving_number,max_turns' : table==='turns' ? 'id,event_id,service_id,number,code,status,created_at,updated_at' : '*';
  const rows=(await db.prepare('SELECT '+publicColumns+' FROM '+table+' '+where+order+' LIMIT '+lim).bind(...binds).all()).results.map(x=>normalize(table,x));
- if(table==='events'&&admin&&(q.select||'').includes('services(')){
+ if(table==='events'&&admin&&/services\(|turns\(/.test(q.select||'')){
   for(const row of rows){
-   row.services=(await db.prepare('SELECT * FROM services WHERE event_id=? ORDER BY sort_order').bind(row.id).all()).results.map(x=>normalize('services',x));
+   if((q.select||'').includes('services('))row.services=(await db.prepare('SELECT * FROM services WHERE event_id=? ORDER BY sort_order').bind(row.id).all()).results.map(x=>normalize('services',x));
    row.turns=(await db.prepare('SELECT id,number,code,status,created_at,updated_at,service_id FROM turns WHERE event_id=? ORDER BY number').bind(row.id).all()).results;
   }
  }
@@ -259,6 +259,13 @@ export async function handleAPI(request,env,url) {
    return result({ok:true});
   }
   const admin=await currentUser(request,db);
+  if(path.startsWith('/media/')&&method==='GET'){
+   const key=path.slice(7);
+   if(!/^[0-9a-f-]{36}$/.test(key))return fail('No encontrado',404);
+   const media=await db.prepare('SELECT content,mime FROM media WHERE path=?').bind(key).first();
+   if(!media)return fail('No encontrado',404);
+   return new Response(media.content,{headers:{'content-type':media.mime,'cache-control':'public, max-age=86400','x-content-type-options':'nosniff'}});
+  }
   if(path.startsWith('/api/data/')&&method==='GET'){
    const table=path.split('/').pop(),q=JSON.parse(url.searchParams.get('q')||'{}');
    return result({data:await readTable(db,table,q,admin)});
@@ -271,10 +278,19 @@ export async function handleAPI(request,env,url) {
    const {name,params}=await getBody(request);
    return result({data:await queueRpc(db,name,params||{},admin,request)});
   }
+  if(path==='/api/auth/change-password'&&method==='POST'){
+   if(!admin)return fail('Sesión no iniciada',401);
+   const b=await getBody(request),newpass=String(b.password||'');
+   if(newpass.length<12||newpass.length>128)return fail('La contraseña debe tener al menos 12 caracteres');
+   const x=salt(),h=await passhash(newpass,x);
+   await db.prepare('UPDATE admins SET password_salt=?,password_hash=?,updated_at=CURRENT_TIMESTAMP WHERE id=?').bind(x,h,admin.id).run();
+   await db.prepare('DELETE FROM sessions WHERE user_id=?').bind(admin.id).run();
+   return result({ok:true});
+  }
   if(path==='/api/media/upload'&&method==='POST'){
    // JSON data-URL image, compacta WebP/JPEG; R2 todavía no disponible.
    if(!admin)return fail('Iniciá sesión',401);
-   const b=await getBody(request),content=String(b.base64||''),mime=String(b.mime||'');
+   const b=await (async()=>{const raw=await request.text();if(raw.length>650000)throw Error('Archivo demasiado grande');return JSON.parse(raw)})(),content=String(b.base64||''),mime=String(b.mime||'');
    if(!['image/webp','image/jpeg','image/png'].includes(mime)||content.length>540000||!/^[A-Za-z0-9+/=]+$/.test(content))return fail('La imagen debe ser WebP/JPG/PNG y pesar menos de 400 KB');
    const bin=Uint8Array.from(atob(content),x=>x.charCodeAt(0));
    if(bin.length>400000)return fail('Imagen demasiado grande');
@@ -290,6 +306,7 @@ export async function handleAPI(request,env,url) {
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return fail('Correo inválido');
     const id=crypto.randomUUID();
     await db.prepare('INSERT INTO admins(id,email,display_name,role,active) VALUES(?,?,?,?,1)').bind(id,email,String(b.display_name||'').slice(0,120),role).run();
+    if(b.password&&String(b.password).length>=12){const x=salt();await db.prepare('UPDATE admins SET password_hash=?,password_salt=? WHERE id=?').bind(await passhash(String(b.password),x),x,id).run();return result({ok:true});}
     const token=random();
     await db.prepare('INSERT INTO auth_invites(token_hash,user_id,expires_at) VALUES(?,?,?)').bind(await sha(token),id,new Date(Date.now()+48*3600000).toISOString()).run();
     return result({ok:true,activation_url:url.origin+'/admin/?activar='+token});
