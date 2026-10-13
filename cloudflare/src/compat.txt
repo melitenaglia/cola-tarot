@@ -37,16 +37,20 @@
   const uri=URL.createObjectURL(file);
   try{
    const im=new Image();im.src=uri;await im.decode();
-   const factor=Math.min(1,1500/Math.max(im.naturalWidth,im.naturalHeight));
+   const originalFactor=Math.min(1,1500/Math.max(im.naturalWidth,im.naturalHeight));
    const canvas=document.createElement('canvas');
-   canvas.width=Math.max(1,Math.round(im.naturalWidth*factor));canvas.height=Math.max(1,Math.round(im.naturalHeight*factor));
-   canvas.getContext('2d').drawImage(im,0,0,canvas.width,canvas.height);
    let blob=null;
-   for(const quality of [.82,.70,.55,.40]){
-    blob=await new Promise(r=>canvas.toBlob(r,'image/webp',quality));
+   for(const scale of [1,.75,.55,.4,.3]){
+    const factor=originalFactor*scale;
+    canvas.width=Math.max(1,Math.round(im.naturalWidth*factor));canvas.height=Math.max(1,Math.round(im.naturalHeight*factor));
+    canvas.getContext('2d').drawImage(im,0,0,canvas.width,canvas.height);
+    for(const quality of [.82,.68,.52,.4]){
+     blob=await new Promise(r=>canvas.toBlob(r,'image/webp',quality));
+     if(blob&&blob.size<390000)break;
+    }
     if(blob&&blob.size<390000)break;
    }
-   if(!blob||blob.size>390000)throw Error('Imagen demasiado grande, elegí una más pequeña');
+   if(!blob||blob.size>390000)throw Error('No se pudo comprimir la imagen para guardarla');
    const bytes=new Uint8Array(await blob.arrayBuffer());
    let s='';for(let i=0;i<bytes.length;i+=8192)s+=String.fromCharCode(...bytes.subarray(i,i+8192));
    return {base64:btoa(s),mime:blob.type};
