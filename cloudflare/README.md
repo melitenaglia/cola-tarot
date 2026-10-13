@@ -1,32 +1,44 @@
-# Soy Amor Universal 111 · Cloudflare staging
+# Soy Amor Universal 111 — Migración Cloudflare (staging)
 
-Entorno de pruebas **independiente** del sitio real en GitHub Pages.
+Entorno independiente del sitio principal en GitHub Pages. **No contiene turnos ni cuentas de producción.**
 
-## Estado
+## Estado confirmado
+- Worker: `soy-amor-eventos-staging`.
+- URL: https://soy-amor-eventos-staging.melisatenaglia.workers.dev
+- Base D1: `soy-amor-eventos-staging` (jurisdicción EU).
+- Binding: `DB`, declarada en `wrangler.jsonc`.
+- Esquema SQLite: `schema.sql` (eventos, configuración, servicios, catálogo, turnos, roles, auditoría).
+- Datos ficticios: `staging-demo-001` y servicio `staging-service-001`.
+- API pública **solo lectura**:
+  - `GET /health`
+  - `GET /api/public/settings`
+  - `GET /api/public/events`
+  - `GET /api/public/events/staging-demo-001`
+- Despliegue realizado por Cloudflare API. La integración CI/CD con GitHub todavía **no** está creada; los commits no se despliegan automáticamente.
 
-- Worker `soy-amor-eventos-staging` de prueba.
-- `/health` muestra el estado del Worker y prueba `SELECT 1` cuando se haya conectado una base D1 llamada `DB`.
-- **No usa credenciales de Supabase ni su base de datos**.
-- El frontend, la base y la lógica de turnos actuales siguen en `main` y no están migrados.
+## Pendiente antes de habilitar turnos reales
 
-## Configuración en Cloudflare
+1. Implementar autenticación independiente de Supabase con control de roles admin/staff. Verificar accesos y sesiones.
+2. Implementar API de escritura con validación estricta, controles de abuso, idempotencia por dispositivo, asignación de turno atómica y pruebas de concurrencia.
+3. Migrar las vistas públicas y el panel de administración desde GitHub Pages para que usen la nueva API.
+4. Probar el circuito completo, creación de evento, apertura/cierre de cola, atención de turnos, QR y servicios.
+5. Planificar exportación y cambio definitivo de datos desde Supabase (incluyendo las imágenes y usuarios) con respaldo y corte controlado.
+6. Preparar despliegue automatizado solo de staging y publicar producción cuando sea seguro.
 
-1. Workers & Pages → Create application → Import a repository.
-2. Repo `melitenaglia/cola-tarot` y rama de producción del Worker **staging** (es producción solo de este Worker de pruebas).
-3. Worker name `soy-amor-eventos-staging`.
-4. Root directory `/cloudflare` (o `cloudflare` si la interfaz no acepta / inicial).
-5. Build command: vacío (sin proceso de compilación).
-6. Deploy command: `npx wrangler deploy`.
-7. Sin custom domain. Usar URL temporal `*.workers.dev`.
+## Protecciones
 
-Tras el primer despliegue, crear base D1 `soy-amor-eventos-staging` (separada de cualquier producción) y añadir binding `DB` al Worker. Para futuros deploys, declarar el binding con su database_id en `wrangler.jsonc` de staging (Git como fuente de verdad).
+- **No** conectar el dominio público real a staging.
+- No reutilizar la base D1 de producción ni copiar información personal a staging.
+- No publicar credenciales o secretos en GitHub/frontend.
+- No habilitar turnos hasta implementar autorización, límites e idempotencia.
+- Los números de turno deben ser únicos por evento mediante una transacción atómica y restricciones `UNIQUE(event_id, number)`.
 
-## Regla de seguridad
+## Despliegue manual con Wrangler
 
-No copiar datos reales de clientes/turnos a staging sin anonimizar, ni mezclar la D1 de staging con la futura D1 de producción. No añadir keys privadas al repositorio.
-El acceso al panel se implementará en Workers con controles de autorización y antifraude; Cloudflare Access puede restringir el panel pero no reemplaza necesariamente el modelo de roles admin/staff.
-El contador consecutivo de turnos debe migrarse con transacciones atómicas que eviten duplicaciones concurrentes.
+Desde `cloudflare/`, con sesión autorizada en la cuenta propietaria:
 
-## Despliegue de producción
+```sh
+npx wrangler deploy
+```
 
-No vincular `eventos.soyamoruniversal111.com` a este Worker. No hacer merge a `main` hasta que la migración, los permisos, backups y circuitos de turnos estén verificados.
+Es imprescindible que los cambios en `schema.sql` se apliquen a D1 antes de publicar código que dependa de ellos.
