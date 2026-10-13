@@ -7,10 +7,11 @@
   <link rel="stylesheet" href="../styles.css?v=20261012-1">
 </head>
 <body>
+  <div role="status" style="position:relative;z-index:2;background:#563c32;color:#fff;text-align:center;padding:9px 14px;font:700 12px/1.4 system-ui,sans-serif;letter-spacing:.04em">VERSIÓN DE PRUEBAS · NO UTILIZAR PARA TURNOS REALES</div>
   <main class="container">
     <section id="loginCard" class="card login-card">
       <h1>Administración</h1>
-      <p class="meta">Ingresá con tu email y contraseña.</p>
+      <p class="meta">Ingresá con tu email y contraseña de siempre. La primera vez se activará tu acceso independiente a Cloudflare.</p>
       <form id="loginForm" class="stack">
         <label>Email<input id="email" type="email" required autocomplete="email"></label>
         <label>Contraseña<input id="password" type="password" required autocomplete="current-password"></label>
@@ -20,20 +21,20 @@
       </form>
       <button id="serviceHelpToggle" class="btn btn-quiet auth-link-btn" type="button" aria-expanded="false" aria-controls="serviceHelp">¿El servicio no funciona?</button>
       <div id="serviceHelp" class="hidden" role="status" aria-live="polite" style="margin-top:10px;padding:14px;border:1px solid var(--line);border-radius:8px">
-        <strong style="display:block;margin-bottom:6px">Reactivar el servicio</strong>
+        <strong style="display:block;margin-bottom:6px">Comprobar servicio</strong>
         <p id="serviceMsg" class="note" style="margin:0 0 12px">Si Cloudflare no responde, podés comprobarlo sin modificar los eventos ni los turnos.</p>
         <div class="stack" style="gap:8px">
-          <a class="btn btn-secondary" href="/health" target="_blank" rel="noopener noreferrer">ABRIR SUPABASE PARA REACTIVAR ↗</a>
+          <a class="btn btn-secondary" href="/health" target="_blank" rel="noopener noreferrer">VER ESTADO DEL SERVICIO ↗</a>
           <button id="checkServiceBtn" class="btn btn-quiet" type="button">↻ COMPROBAR CONEXIÓN</button>
         </div>
-        <p class="note" style="margin:9px 0 0">Entrá con la cuenta autorizada de Cloudflare, pulsá «Comprobar conexión» si aparece y volvé acá para comprobar la conexión. Este acceso requiere permisos en Cloudflare.</p>
+        <p class="note" style="margin:9px 0 0">Cloudflare no se desactiva por inactividad. Si el estado es correcto, probá iniciar sesión de nuevo.</p>
       </div>
     </section>
 
     <section id="forgotPasswordCard" class="card login-card hidden">
       <button id="backToLoginBtn" class="btn btn-quiet auth-back-btn" type="button">← Volver</button>
       <h1>Restablecer contraseña</h1>
-      <p class="meta">Ingresá el email de tu usuario. Te enviaremos un enlace para crear una nueva contraseña.</p>
+      <p class="meta">La recuperación automática por correo todavía no está habilitada en este entorno. Solicitá a otra administradora un nuevo enlace de acceso.</p>
       <form id="forgotPasswordForm" class="stack">
         <label>Email<input id="resetEmail" type="email" required autocomplete="email"></label>
         <button class="btn btn-primary" type="submit">ENVIAR ENLACE</button>
@@ -45,8 +46,8 @@
       <h1>Nueva contraseña</h1>
       <p class="meta">Elegí una nueva contraseña para volver a entrar al panel.</p>
       <form id="newPasswordForm" class="stack">
-        <label>Nueva contraseña<input id="newPassword" type="password" minlength="8" required autocomplete="new-password"></label>
-        <label>Repetir contraseña<input id="newPasswordConfirm" type="password" minlength="8" required autocomplete="new-password"></label>
+        <label>Nueva contraseña<input id="newPassword" type="password" minlength="12" required autocomplete="new-password"></label>
+        <label>Repetir contraseña<input id="newPasswordConfirm" type="password" minlength="12" required autocomplete="new-password"></label>
         <button class="btn btn-primary" type="submit">GUARDAR CONTRASEÑA</button>
         <div id="newPasswordMsg" class="note"></div>
       </form>
@@ -333,7 +334,7 @@
               <div class="grid grid-2">
                 <label>Nombre<input id="editUsrName" required></label>
                 <label>Email<input id="editUsrEmail" type="email" required></label>
-                <label>Nueva contraseña (opcional)<input id="editUsrPassword" type="password" minlength="8" placeholder="Dejar vacío para no cambiarla"></label>
+                <label>Nueva contraseña (opcional)<input id="editUsrPassword" type="password" minlength="12" placeholder="Dejar vacío para no cambiarla"></label>
                 <label>Rol<select id="editUsrRole"><option value="staff">Staff</option><option value="admin">Admin</option></select></label>
               </div>
               <label class="checkline"><input id="editUsrActive" type="checkbox"> Usuario activo</label>
@@ -348,7 +349,7 @@
             <div class="grid grid-2">
               <label>Nombre<input id="usrName" required></label>
               <label>Email<input id="usrEmail" type="email" required></label>
-              <label>Contraseña<input id="usrPassword" type="password" minlength="8" required></label>
+              <label>Contraseña<input id="usrPassword" type="password" minlength="12" required></label>
               <label>Rol<select id="usrRole"><option value="staff">Staff</option><option value="admin">Admin</option></select></label>
             </div>
             <button class="btn btn-primary" type="submit">CREAR USUARIO</button>
