@@ -12,5 +12,16 @@
       "database_name": "soy-amor-eventos-staging",
       "database_id": "6cc90522-6291-442d-85ac-814298d0213a"
     }
+  ],
+  "rules": [
+    {
+      "type": "Text",
+      "globs": [
+        "**/*.html",
+        "**/*.css",
+        "**/*.txt"
+      ],
+      "fallthrough": true
+    }
   ]
 }
