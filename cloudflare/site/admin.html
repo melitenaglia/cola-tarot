@@ -282,6 +282,12 @@
       </section>
 
       <section id="tab-settings" class="tabpane hidden">
+        <div class="card" style="margin-bottom:15px">
+          <h2>Carteles de eventos</h2>
+          <p class="note">Copiá los carteles antiguos a Cloudflare para que no dependan de Supabase.</p>
+          <button id="importOldImagesBtn" type="button" class="btn btn-secondary">COPIAR CARTELES A CLOUDFLARE</button>
+          <p id="importOldImagesMsg" class="note" role="status" aria-live="polite"></p>
+        </div>
         <div class="card">
           <h2>Configuración pública</h2>
           <form id="settingsForm" class="stack">
@@ -1678,6 +1684,34 @@
       q('userMsg').textContent=data?.activation_url?'Usuario creado. Enviá este enlace privado para que configure su contraseña: '+data.activation_url:'Usuario creado.';
       e.target.reset();
       await loadUsers();
+    });
+
+    q('importOldImagesBtn').addEventListener('click',async()=>{
+      const button=q('importOldImagesBtn'),msg=q('importOldImagesMsg');
+      button.disabled=true;msg.textContent='Comprobando los carteles…';
+      let copied=0,failed=0;
+      try{
+        const {data:events,error}=await db.from('events').select('id,image_url');
+        if(error)throw Error(error.message);
+        const originals=(events||[]).filter(e=>typeof e.image_url==='string'&&e.image_url.startsWith('https://yczzfhfyrkmgqsblmeze.supabase.co/storage/v1/object/public/event-images/'));
+        if(!originals.length){msg.textContent='Los carteles ya están en Cloudflare o no hay imágenes pendientes.';return;}
+        for(const ev of originals){
+          msg.textContent='Copiando carteles… '+(copied+failed+1)+' de '+originals.length;
+          try{
+            const response=await fetch(ev.image_url,{mode:'cors'});
+            if(!response.ok)throw Error('No se pudo descargar el cartel');
+            const b=await response.blob();
+            const file=new File([b],'cartel.png',{type:b.type||'image/png'});
+            const newUrl=await uploadEventImage(file,ev.id);
+            const {error:saveError}=await db.from('events').update({image_url:newUrl}).eq('id',ev.id);
+            if(saveError)throw Error(saveError.message);
+            copied++;
+          }catch(e){failed++;console.warn('No fue posible copiar un cartel',e);}
+        }
+        msg.textContent='Carteles copiados: '+copied+'. Pendientes: '+failed+'.'+(failed?' Podés volver a intentarlo o subir esas imágenes desde la edición del evento.':'');
+        await loadEvents();
+      }catch(e){msg.textContent='No se pudo completar la copia: '+e.message;}
+      finally{button.disabled=false;}
     });
 
     ensureAuth().catch(()=>{
