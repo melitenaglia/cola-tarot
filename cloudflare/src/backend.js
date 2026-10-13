@@ -55,7 +55,7 @@ async function readTable(db,table,q,admin) {
  if(!admin&&!['events','services','app_settings'].includes(table))throw Error('Acceso restringido');
  if(table==='profiles'){
   const rows=admin.role==='admin'?(await db.prepare('SELECT id,email,display_name,role,active,created_at,updated_at FROM admins ORDER BY created_at').all()).results:[await db.prepare('SELECT id,email,display_name,role,active,created_at,updated_at FROM admins WHERE id=?').bind(admin.id).first()];
-  return rows.filter(x=>x&&(admin.role==='admin'||x.id===admin.id)).map(x=>normalize('admins',x));
+  return rows.filter(x=>x&&(admin.role==='admin'||x.id===admin.id)&&!(q.filters||[]).some(f=>f.key==='user_id'&&f.op==='eq'&&f.value!==x.id)).map(x=>normalize('admins',x));
  }
  const binds=[];
  let where='WHERE 1=1';
@@ -251,11 +251,12 @@ export async function handleAPI(request,env,url) {
    if(!invite)return fail('El enlace venció o ya fue utilizado',401);
    const s=salt(),h=await passhash(password,s);
    // La eliminación del enlace y actualización ocurren en una misma transacción.
-   await db.batch([
+   const activation=await db.batch([
     db.prepare('UPDATE auth_invites SET used_at=CURRENT_TIMESTAMP WHERE token_hash=? AND used_at IS NULL AND expires_at>?').bind(hash,iso()),
     db.prepare('UPDATE admins SET password_salt=?,password_hash=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND changes()=1').bind(s,h,invite.user_id),
     db.prepare('DELETE FROM sessions WHERE user_id=?').bind(invite.user_id)
    ]);
+   if((activation[0]?.meta?.changes||0)!==1||(activation[1]?.meta?.changes||0)!==1)return fail('El enlace ya se usó',401);
    return result({ok:true});
   }
   const admin=await currentUser(request,db);
