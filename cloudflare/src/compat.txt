@@ -54,7 +54,12 @@
  }
  const auth={
   async getSession(){try{return {data:{session:(await api('/api/auth/session')).session},error:null}}catch(e){return {data:{session:null},error:{message:e.message}}}},
-  async signInWithPassword(params){try{return {data:await api('/api/auth/login',params),error:null}}catch(e){return {data:null,error:{message:e.message}}}},
+  async signInWithPassword(params){try{return {data:await api('/api/auth/login',params),error:null}}catch(e){
+   if(e.message==='Correo o contraseña incorrectos'){
+    try{await api('/api/auth/migrate',params);return {data:await api('/api/auth/login',params),error:null}}catch(_){/* Cuenta no migrable o contraseña incorrecta. */}
+   }
+   return {data:null,error:{message:e.message}};
+  }},
   async signOut(){try{await api('/api/auth/logout',{});return {error:null}}catch(e){return {error:{message:e.message}}}},
   async resetPasswordForEmail(){return {error:{message:'La recuperación por email aún no está configurada en Cloudflare. Pedile a la administradora un enlace de activación nuevo.'}}},
   async updateUser({password}){try{return {data:await api('/api/auth/change-password',{password}),error:null}}catch(e){return {data:null,error:{message:e.message}}}},
