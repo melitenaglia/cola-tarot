@@ -1,0 +1,639 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Eventos · Soy Amor Universal 111</title>
+  <link rel="stylesheet" href="./styles.css?v=20261012-1">
+</head>
+<body>
+  <main class="container">
+    <section class="hero">
+      <h1 class="brand">Soy Amor Universal 111</h1>
+      <p id="publicSubtitle" class="sub hidden"></p>
+    </section>
+
+    <section id="eventDetailCard" class="card event-detail-card hidden">
+      <button id="backToEventsBtn" class="btn btn-quiet" type="button">← VOLVER A EVENTOS</button>
+      <img id="eventDetailImage" class="event-detail-image hidden" alt="" onerror="this.classList.add('hidden')">
+      <div id="eventDetailMeta" class="meta" style="margin-top:14px"></div>
+      <h2 id="eventDetailName" class="event-detail-title"></h2>
+      <p id="eventDetailDescription" class="event-detail-description hidden"></p>
+      <div id="eventDetailLocation" class="event-detail-location hidden"></div>
+      <div id="eventDetailServices" class="event-detail-services hidden"></div>
+      <div id="eventDetailActions" class="event-detail-actions"></div>
+    </section>
+
+    <section id="activeEventCard" class="card hidden">
+      <div class="topbar">
+        <div>
+          <span class="pill pill-open">LISTA DE ESPERA ABIERTA</span>
+          <h2 id="activeName" class="event-title"></h2>
+        </div>
+      </div>
+      <div id="activeMeta" class="meta"></div>
+      <div class="active-queue-instruction">
+        <strong>Reservá tu turno para este evento</strong>
+        <span>Elegí tu lectura si corresponde y sacá tu turno acá.</span>
+      </div>
+      <div id="serviceBox" class="stack" style="margin-top:18px"></div>
+
+      <div id="turnArea" class="hidden">
+        <div id="activeTurnState">
+          <div id="turnDate" class="small" style="opacity:.45;margin-top:12px;letter-spacing:.08em"></div>
+          <div id="turnLabel" class="turn-label">Tu turno será</div>
+          <div id="turnCode" class="big-turn"></div>
+          <div id="turnAssignedMsg" class="turn-assigned hidden">✓ Turno asignado</div>
+          <button id="whatsappBtn" class="btn btn-primary" style="width:100%">💬 CONFIRMAR POR WHATSAPP</button>
+          <p id="whatsappHint" class="note whatsapp-hint"><strong>ÚLTIMO PASO:</strong> enviá el mensaje para confirmar tu turno.</p>
+          <div id="queueProgress" class="queue-progress hidden">
+            <div class="queue-progress-current">
+              <span>Turno actual</span>
+              <strong id="currentTurnNow">—</strong>
+            </div>
+            <div id="peopleAheadText" class="queue-progress-text"></div>
+          </div>
+        </div>
+
+        <div id="completedTurnState" class="completed-turn hidden">
+          <div class="completed-turn-mark">✓</div>
+          <h2 id="completedTitle">Gracias por compartir este encuentro</h2>
+          <p id="completedMessage">Espero que esta lectura te acompañe y te aporte un poquito de luz ✦</p>
+          <p id="reviewPrompt" class="note">Si te gustó la experiencia, podés dejar una reseña.</p>
+          <a id="completedReviewBtn" class="btn btn-primary hidden" target="_blank" rel="noopener">★ DEJAR UNA RESEÑA</a>
+        </div>
+      </div>
+
+      <button id="takeTurnBtn" class="btn btn-primary" style="width:100%;margin-top:18px">SACAR MI TURNO</button>
+      <div id="queueStatus" class="note" style="margin-top:12px"></div>
+    </section>
+
+    <section id="serviceUnavailable" class="card hidden" role="alert" aria-live="polite">
+      <h2>No podemos cargar los eventos en este momento</h2>
+      <p class="meta">Hay un problema temporal de conexión con el servicio de eventos. Por favor, intentá nuevamente. Si estás en un evento, consultá directamente con la organización.</p>
+      <button id="retryPublicBtn" class="btn btn-secondary" type="button">↻ VOLVER A INTENTAR</button>
+    </section>
+
+    <section id="noActive" class="card no-active-card">
+      <h2>No hay una lista de espera abierta en este momento</h2>
+      <p class="meta">Cuando haya un evento con turnos disponibles, vas a poder reservar desde esta misma pantalla. Mientras tanto, podés ver los próximos eventos.</p>
+      <a class="btn btn-secondary no-active-next-btn" href="#upcomingSection">VER PRÓXIMOS EVENTOS ↓</a>
+    </section>
+
+    <div id="upcomingToggleWrap" class="upcoming-toggle-wrap hidden">
+      <div>
+        <strong>Próximos eventos</strong>
+        <span>Información para más adelante</span>
+      </div>
+      <button id="toggleUpcomingBtn" class="btn btn-quiet" type="button">VER ↓</button>
+    </div>
+
+    <section id="upcomingSection" class="card">
+      <h2 id="upcomingTitle">Próximos eventos</h2>
+      <p id="upcomingIntro" class="note upcoming-intro">Mirá los próximos encuentros y toda la información de cada evento.</p>
+      <div id="upcomingList" class="list">
+        <div class="note">Cargando…</div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Seguime y conocé más</h2>
+      <div class="links" id="socialLinks"></div>
+      <div id="reviewBlock" class="hidden" style="margin-top:14px">
+        <a id="reviewLink" class="btn btn-secondary" target="_blank" rel="noopener">✦ Dejar una reseña en Google</a>
+      </div>
+    </section>
+  </main>
+
+  <script src="/compat.js"></script>
+  
+  <script>
+    const { createClient } = supabase;
+    const db = createClient(SAU_CONFIG.supabaseUrl, SAU_CONFIG.supabaseKey);
+    let activeEvent = null;
+    let activeServices = [];
+    let selectedServiceId = null;
+    let settings = null;
+    let queueRefreshTimer = null;
+    const requestedEventId = new URLSearchParams(window.location.search).get('evento');
+
+    function fmtDate(iso) {
+      const d = new Date(iso);
+      return new Intl.DateTimeFormat('es-ES',{dateStyle:'medium',timeStyle:'short'}).format(d);
+    }
+
+    function hourLabel(iso) {
+      const d = new Date(iso);
+      const h = d.getHours();
+      const m = d.getMinutes();
+      return m ? h + ':' + String(m).padStart(2,'0') + ' hs' : h + ' hs';
+    }
+
+    function eventSpan(start,end) {
+      const d = new Date(start);
+      const date = new Intl.DateTimeFormat('es-ES',{day:'2-digit',month:'2-digit',year:'2-digit'}).format(d);
+      return date + ' · ' + hourLabel(start) + ' - ' + hourLabel(end);
+    }
+
+    function getDeviceToken() {
+      let token = localStorage.getItem('sau_device_token');
+      if (!token) {
+        token = (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)+Date.now());
+        localStorage.setItem('sau_device_token', token);
+      }
+      return token;
+    }
+
+    function eventTurnKey(eventId){ return 'sau_turn_' + eventId; }
+    function eventServiceKey(eventId){ return 'sau_service_' + eventId; }
+    function whatsappOpenedKey(eventId){ return 'sau_whatsapp_opened_' + eventId; }
+
+    function splitTurnCode(fullCode) {
+      const match = String(fullCode || '').match(/^(\d{6})-(T\d+)$/i);
+      return match
+        ? { dateCode: match[1], turn: match[2].toUpperCase() }
+        : { dateCode: '', turn: String(fullCode || '') };
+    }
+
+    function displayDateFromCode(dateCode) {
+      if (!/^\d{6}$/.test(dateCode)) return '';
+      return dateCode.slice(0,2) + '/' + dateCode.slice(2,4) + '/' + dateCode.slice(4,6);
+    }
+
+    function turnDisplay(number) {
+      return number ? 'T' + String(number).padStart(3,'0') : '—';
+    }
+
+    function localDateKey(value) {
+      const d = value instanceof Date ? value : new Date(value);
+      const pad = n => String(n).padStart(2,'0');
+      return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+    }
+
+    function selectedService(){
+      return activeServices.find(s=>s.id===selectedServiceId) || (activeServices.length===1 ? activeServices[0] : null);
+    }
+
+    function serviceChoiceLabel(s){
+      const parts=[];
+      if(!s.included_with_entry && s.duration_minutes) parts.push(s.duration_minutes+' min');
+      if(!s.included_with_entry && s.price_cents!=null) parts.push((s.price_cents/100).toFixed(0)+' €');
+      return s.name + (parts.length ? ' · '+parts.join(' · ') : '');
+    }
+
+    function buildWhatsAppUrl(fullCode) {
+      const phone = (settings?.whatsapp_number || '').replace(/\D/g,'');
+      const parts = splitTurnCode(fullCode);
+      const svc = selectedService();
+      const lines = [
+        `Código: ${fullCode}`,
+        '',
+        'Hola! Quiero reservar mi turno.',
+        ''
+      ];
+
+      if (svc) {
+        lines.push(`*Lectura elegida: ${svc.name}*`);
+        if (!svc.included_with_entry && svc.duration_minutes) lines.push(`Duración: ${svc.duration_minutes} min`);
+        if (!svc.included_with_entry && svc.price_cents != null) lines.push(`Precio: ${(svc.price_cents/100).toFixed(0)} €`);
+        lines.push('');
+      }
+
+      lines.push(`*Mi turno es ${parts.turn}*`);
+
+      if (svc?.whatsapp_extra) {
+        lines.push('', svc.whatsapp_extra);
+      }
+
+      lines.push('', 'Confirmo mi lugar en la lista de espera.');
+      const msg = lines.join('\n');
+      return `https://wa.me/${phone}?text=${encodeURIComponent(msg)}`;
+    }
+
+    async function loadSettings() {
+      const { data } = await db.from('app_settings').select('*').eq('id',1).maybeSingle();
+      settings = data || {};
+      if (settings.brand_name) {
+        document.querySelector('.brand').textContent = settings.brand_name;
+      }
+      const subtitle = document.getElementById('publicSubtitle');
+      if (settings.public_subtitle) {
+        subtitle.textContent = settings.public_subtitle;
+        subtitle.classList.remove('hidden');
+      } else {
+        subtitle.textContent = '';
+        subtitle.classList.add('hidden');
+      }
+      document.getElementById('completedTitle').textContent =
+        settings.completed_title || 'Gracias por compartir este encuentro';
+      document.getElementById('completedMessage').textContent =
+        settings.completed_message || 'Espero que esta lectura te acompañe y te aporte un poquito de luz ✦';
+      document.getElementById('reviewPrompt').textContent =
+        settings.review_prompt || 'Si te gustó la experiencia, podés dejar una reseña.';
+
+      const links = document.getElementById('socialLinks');
+      links.replaceChildren();
+      document.getElementById('reviewBlock').classList.add('hidden');
+      if (settings.instagram_url) links.insertAdjacentHTML('beforeend', `<a class="btn btn-secondary" href="${settings.instagram_url}" target="_blank" rel="noopener">Instagram</a>`);
+      if (settings.website_url) links.insertAdjacentHTML('beforeend', `<a class="btn btn-secondary" href="${settings.website_url}" target="_blank" rel="noopener">Web</a>`);
+      if (settings.google_review_url) {
+        document.getElementById('reviewBlock').classList.remove('hidden');
+        document.getElementById('reviewLink').href = settings.google_review_url;
+        const completedReviewBtn = document.getElementById('completedReviewBtn');
+        completedReviewBtn.href = settings.google_review_url;
+        completedReviewBtn.classList.remove('hidden');
+      }
+    }
+
+    async function renderEventDetail(event){
+      if(!event)return;
+
+      document.getElementById('activeEventCard').classList.add('hidden');
+      document.getElementById('noActive').classList.add('hidden');
+      document.getElementById('upcomingSection').classList.add('hidden');
+      document.getElementById('upcomingToggleWrap').classList.add('hidden');
+
+      const card=document.getElementById('eventDetailCard');
+      const image=document.getElementById('eventDetailImage');
+      const description=document.getElementById('eventDetailDescription');
+      const location=document.getElementById('eventDetailLocation');
+      const actions=document.getElementById('eventDetailActions');
+      const servicesBox=document.getElementById('eventDetailServices');
+
+      document.getElementById('eventDetailName').textContent=event.name||'Evento';
+      document.getElementById('eventDetailMeta').textContent=
+        eventSpan(event.starts_at,event.ends_at)+(event.location_name?' · '+event.location_name:'');
+
+      if(event.image_url){
+        image.onerror=()=>{
+          image.classList.add('hidden');
+          image.removeAttribute('src');
+        };
+        image.src=event.image_url;
+        image.alt=event.name||'Imagen del evento';
+        image.classList.remove('hidden');
+      }else{
+        image.src='';
+        image.classList.add('hidden');
+      }
+
+      if(event.description){
+        description.textContent=event.description;
+        description.classList.remove('hidden');
+      }else{
+        description.textContent='';
+        description.classList.add('hidden');
+      }
+
+      if(event.location_name || event.location_address){
+        location.innerHTML=
+          (event.location_name?'<strong>'+event.location_name+'</strong>':'')+
+          (event.location_address?'<div class="meta">'+event.location_address+'</div>':'');
+        location.classList.remove('hidden');
+      }else{
+        location.innerHTML='';
+        location.classList.add('hidden');
+      }
+
+      const { data: detailServices }=await db.from('services')
+        .select('*')
+        .eq('event_id',event.id)
+        .eq('active',true)
+        .order('sort_order');
+
+      const services=detailServices||[];
+      if(services.length){
+        servicesBox.innerHTML=
+          '<div class="small" style="margin-bottom:7px">LECTURAS DISPONIBLES</div>'+
+          services.map(s=>{
+            const parts=[];
+            if(!s.included_with_entry && s.duration_minutes) parts.push(s.duration_minutes+' min');
+            if(!s.included_with_entry && s.price_cents!=null) parts.push((s.price_cents/100).toFixed(0)+' €');
+            return '<div class="event-detail-service"><strong>'+s.name+'</strong>'+
+              (parts.length?'<span>'+parts.join(' · ')+'</span>':'')+
+              (s.description?'<small>'+s.description+'</small>':'')+
+              '</div>';
+          }).join('');
+        servicesBox.classList.remove('hidden');
+      }else{
+        servicesBox.innerHTML='';
+        servicesBox.classList.add('hidden');
+      }
+
+      actions.innerHTML='';
+      if(event.maps_url){
+        actions.insertAdjacentHTML('beforeend',
+          '<a class="btn btn-secondary" href="'+event.maps_url+'" target="_blank" rel="noopener">📍 VER EN GOOGLE MAPS</a>');
+      }
+      if(event.official_url){
+        actions.insertAdjacentHTML('beforeend',
+          '<a class="btn btn-primary" href="'+event.official_url+'" target="_blank" rel="noopener">↗ WEB OFICIAL / ENTRADAS</a>');
+      }
+
+      card.classList.remove('hidden');
+      window.scrollTo({top:0,behavior:'smooth'});
+    }
+
+    document.getElementById('backToEventsBtn').addEventListener('click',()=>{
+      window.location.href=window.location.pathname;
+    });
+
+    const upcomingToggleBtn=document.getElementById('toggleUpcomingBtn');
+    upcomingToggleBtn.addEventListener('click',()=>{
+      const section=document.getElementById('upcomingSection');
+      const opening=section.classList.contains('hidden');
+      section.classList.toggle('hidden',!opening);
+      upcomingToggleBtn.textContent=opening?'OCULTAR ↑':'VER ↓';
+      if(opening) section.scrollIntoView({behavior:'smooth',block:'start'});
+    });
+
+    async function loadEvents() {
+      const now = new Date().toISOString();
+      const { data: events, error } = await db
+        .from('events')
+        .select('*')
+        .eq('status','published')
+        .order('starts_at',{ascending:true});
+      if (error) {
+        document.getElementById('serviceUnavailable').classList.remove('hidden');
+        document.getElementById('activeEventCard').classList.add('hidden');
+        document.getElementById('noActive').classList.add('hidden');
+        document.getElementById('upcomingSection').classList.add('hidden');
+        document.getElementById('upcomingToggleWrap').classList.add('hidden');
+        return;
+      }
+      document.getElementById('serviceUnavailable').classList.add('hidden');
+
+      if(requestedEventId){
+        const detailEvent=(events||[]).find(e=>e.id===requestedEventId);
+        if(detailEvent){
+          await renderEventDetail(detailEvent);
+          return;
+        }
+      }
+
+      activeEvent = (events || []).find(e => e.queue_status === 'open');
+      document.body.classList.toggle('has-open-queue',!!activeEvent);
+      if (activeEvent) {
+        document.getElementById('activeEventCard').classList.remove('hidden');
+        document.getElementById('noActive').classList.add('hidden');
+        document.getElementById('upcomingToggleWrap').classList.remove('hidden');
+        document.getElementById('upcomingSection').classList.add('hidden');
+        upcomingToggleBtn.textContent='VER ↓';
+        document.getElementById('upcomingTitle').textContent='Otros próximos eventos';
+        document.getElementById('upcomingIntro').textContent='Información para más adelante. Tu turno de hoy se gestiona arriba.';
+        document.getElementById('activeName').textContent = activeEvent.name;
+        document.getElementById('activeMeta').innerHTML =
+          `${eventSpan(activeEvent.starts_at,activeEvent.ends_at)}${activeEvent.location_name ? ' · '+activeEvent.location_name : ''}` +
+          (activeEvent.location_address ? `<br>${activeEvent.location_address}` : '') +
+          (activeEvent.maps_url ? `<br><a target="_blank" rel="noopener" href="${activeEvent.maps_url}">Ver ubicación</a>` : '');
+        await loadServices(activeEvent.id);
+        restoreTurn();
+      } else {
+        document.getElementById('activeEventCard').classList.add('hidden');
+        document.getElementById('noActive').classList.remove('hidden');
+        document.getElementById('upcomingToggleWrap').classList.add('hidden');
+        document.getElementById('upcomingSection').classList.remove('hidden');
+        document.getElementById('upcomingTitle').textContent='Próximos eventos';
+        document.getElementById('upcomingIntro').textContent='Mirá los próximos encuentros y toda la información de cada evento.';
+      }
+
+      const upcoming = (events || []).filter(e =>
+        e.show_upcoming &&
+        new Date(e.starts_at) >= new Date() &&
+        (!activeEvent || e.id !== activeEvent.id)
+      );
+      const list = document.getElementById('upcomingList');
+      if (!upcoming.length) {
+        list.innerHTML = '<div class="note">No hay próximos eventos publicados por ahora.</div>';
+      } else {
+        list.innerHTML = upcoming.map(e => `
+          <div class="list-item upcoming-event-item">
+            ${e.image_url?'<img class="upcoming-event-image" src="'+e.image_url+'" alt="" onerror="this.remove()">':''}
+            <div class="upcoming-event-content">
+              <strong>${e.name}</strong>
+              <div class="meta">${eventSpan(e.starts_at,e.ends_at)}${e.location_name ? ' · '+e.location_name : ''}</div>
+              <div class="actions" style="margin-top:9px">
+                <a class="btn btn-secondary" href="?evento=${encodeURIComponent(e.id)}">VER EVENTO</a>
+                ${e.official_url?'<a class="btn btn-primary" href="'+e.official_url+'" target="_blank" rel="noopener">↗ ENTRADAS / WEB</a>':''}
+              </div>
+            </div>
+          </div>`).join('');
+      }
+    }
+
+    async function loadServices(eventId) {
+      const { data } = await db.from('services').select('*').eq('event_id',eventId).eq('active',true).order('sort_order');
+      activeServices = data || [];
+      const box = document.getElementById('serviceBox');
+
+      if (activeServices.length <= 1) {
+        selectedServiceId = activeServices[0]?.id || null;
+        box.innerHTML = activeServices[0]
+          ? `<div class="list-item service-only"><strong>${activeServices[0].name}</strong></div>`
+          : '';
+      } else {
+        box.innerHTML = '<label>Elegí tu lectura<select id="serviceSelect"><option value="">Seleccionar…</option>' +
+          activeServices.map(s => `<option value="${s.id}">${serviceChoiceLabel(s)}</option>`).join('') +
+          '</select></label><div id="serviceChoiceDetail" class="service-choice-detail hidden"></div>';
+
+        const select = document.getElementById('serviceSelect');
+        const detail = document.getElementById('serviceChoiceDetail');
+        select.addEventListener('change', e => {
+          selectedServiceId = e.target.value || null;
+          const svc = selectedService();
+          if (!svc) {
+            detail.classList.add('hidden');
+            detail.innerHTML = '';
+            return;
+          }
+          const parts=[];
+          if (!svc.included_with_entry && svc.duration_minutes) parts.push(svc.duration_minutes+' min');
+          if (!svc.included_with_entry && svc.price_cents!=null) parts.push((svc.price_cents/100).toFixed(0)+' €');
+          detail.innerHTML =
+            '<strong>'+svc.name+'</strong>' +
+            (parts.length?'<div class="meta">'+parts.join(' · ')+'</div>':'') +
+            (svc.description?'<div class="note">'+svc.description+'</div>':'');
+          detail.classList.remove('hidden');
+        });
+      }
+    }
+
+    function showTurn(code) {
+      const parts = splitTurnCode(code);
+      document.getElementById('turnDate').textContent = parts.dateCode ? displayDateFromCode(parts.dateCode) : '';
+      document.getElementById('turnCode').textContent = parts.turn;
+      document.getElementById('turnArea').classList.remove('hidden');
+      document.getElementById('takeTurnBtn').classList.add('hidden');
+      document.getElementById('activeTurnState').classList.remove('hidden');
+      document.getElementById('completedTurnState').classList.add('hidden');
+
+      const btn = document.getElementById('whatsappBtn');
+      const hint = document.getElementById('whatsappHint');
+      const label = document.getElementById('turnLabel');
+      const assigned = document.getElementById('turnAssignedMsg');
+      const progress = document.getElementById('queueProgress');
+      const wasOpened = activeEvent && localStorage.getItem(whatsappOpenedKey(activeEvent.id)) === '1';
+
+      if (wasOpened) {
+        label.textContent = 'Tu turno';
+        assigned.classList.remove('hidden');
+        progress.classList.remove('hidden');
+        btn.textContent = '💬 ABRIR WHATSAPP DE NUEVO';
+        hint.textContent = settings?.waiting_message || 'Estate atent@ a tu móvil. Te avisaré cuando sea tu turno.';
+        startQueueRefresh();
+      } else {
+        label.textContent = 'Tu turno será';
+        assigned.classList.add('hidden');
+        progress.classList.add('hidden');
+        btn.textContent = '💬 CONFIRMAR POR WHATSAPP';
+        hint.textContent = settings?.whatsapp_instruction || 'ÚLTIMO PASO: enviá el mensaje para confirmar tu turno.';
+      }
+
+      btn.onclick = () => {
+        if (activeEvent) localStorage.setItem(whatsappOpenedKey(activeEvent.id), '1');
+        label.textContent = 'Tu turno';
+        assigned.classList.remove('hidden');
+        progress.classList.remove('hidden');
+        btn.textContent = '💬 ABRIR WHATSAPP DE NUEVO';
+        hint.textContent = settings?.waiting_message || 'Estate atent@ a tu móvil. Te avisaré cuando sea tu turno.';
+        startQueueRefresh();
+        window.location.href = buildWhatsAppUrl(code);
+      };
+    }
+
+    function showCompletedTurnState() {
+      document.getElementById('activeTurnState').classList.add('hidden');
+      document.getElementById('completedTurnState').classList.remove('hidden');
+    }
+
+    function showActiveTurnState() {
+      document.getElementById('completedTurnState').classList.add('hidden');
+      document.getElementById('activeTurnState').classList.remove('hidden');
+    }
+
+    async function updateQueuePosition() {
+      if (!activeEvent) return;
+      const progress = document.getElementById('queueProgress');
+      if (!progress || progress.classList.contains('hidden')) return;
+
+      const { data, error } = await db.rpc('get_queue_position', {
+        p_event_id: activeEvent.id,
+        p_device_token: getDeviceToken()
+      });
+      if (error || !data?.length) return;
+
+      const row = data[0];
+
+      if (row.user_status === 'done') {
+        showCompletedTurnState();
+        return;
+      }
+
+      showActiveTurnState();
+      document.getElementById('currentTurnNow').textContent = turnDisplay(row.current_turn_number);
+
+      const text = document.getElementById('peopleAheadText');
+      if (row.people_ahead === 0) {
+        text.innerHTML = '<strong>Sos el próximo turno.</strong>';
+      } else if (row.people_ahead === 1) {
+        text.innerHTML = '<strong>Hay 1 persona antes que vos.</strong>';
+      } else if (row.people_ahead != null) {
+        text.innerHTML = '<strong>Hay ' + row.people_ahead + ' personas antes que vos.</strong>';
+      } else {
+        text.textContent = '';
+      }
+    }
+
+    function startQueueRefresh() {
+      updateQueuePosition();
+      if (queueRefreshTimer) clearInterval(queueRefreshTimer);
+      queueRefreshTimer = setInterval(updateQueuePosition, 8000);
+    }
+
+    function restoreTurn() {
+      if (!activeEvent) return;
+      const storedServiceId = localStorage.getItem(eventServiceKey(activeEvent.id));
+      if (storedServiceId && activeServices.some(s=>s.id===storedServiceId)) {
+        selectedServiceId = storedServiceId;
+        const select = document.getElementById('serviceSelect');
+        if (select) select.value = storedServiceId;
+      }
+      const code = localStorage.getItem(eventTurnKey(activeEvent.id));
+      if (code) showTurn(code);
+    }
+
+    document.getElementById('takeTurnBtn').addEventListener('click', async () => {
+      if (!activeEvent) return;
+      if (activeServices.length > 1 && !selectedServiceId) {
+        document.getElementById('queueStatus').textContent = 'Elegí una lectura antes de sacar turno.';
+        return;
+      }
+      const btn = document.getElementById('takeTurnBtn');
+      btn.disabled = true;
+      document.getElementById('queueStatus').textContent = 'Asignando tu turno…';
+      const { data, error } = await db.rpc('issue_turn', {
+        p_event_id: activeEvent.id,
+        p_device_token: getDeviceToken(),
+        p_service_id: selectedServiceId || null
+      });
+      btn.disabled = false;
+      if (error || !data?.length) {
+        document.getElementById('queueStatus').textContent = error?.message || 'No pudimos asignar el turno.';
+        return;
+      }
+      const code = data[0].code;
+      if (data[0].service_id) selectedServiceId = data[0].service_id;
+      localStorage.setItem(eventTurnKey(activeEvent.id), code);
+      if (selectedServiceId) localStorage.setItem(eventServiceKey(activeEvent.id), selectedServiceId);
+      document.getElementById('queueStatus').textContent = '';
+      showTurn(code);
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState !== 'visible' || !activeEvent) return;
+      const code = localStorage.getItem(eventTurnKey(activeEvent.id));
+      if (!code) return;
+      if (localStorage.getItem(whatsappOpenedKey(activeEvent.id)) === '1') {
+        const btn = document.getElementById('whatsappBtn');
+        const hint = document.getElementById('whatsappHint');
+        const label = document.getElementById('turnLabel');
+        const assigned = document.getElementById('turnAssignedMsg');
+        const progress = document.getElementById('queueProgress');
+        label.textContent = 'Tu turno';
+        assigned.classList.remove('hidden');
+        progress.classList.remove('hidden');
+        btn.textContent = '💬 ABRIR WHATSAPP DE NUEVO';
+        hint.textContent = settings?.waiting_message || 'Estate atent@ a tu móvil. Te avisaré cuando sea tu turno.';
+        startQueueRefresh();
+      }
+    });
+
+    document.getElementById('retryPublicBtn').addEventListener('click',async()=>{
+      const button=document.getElementById('retryPublicBtn');
+      button.disabled=true;
+      button.textContent='Comprobando conexión…';
+      try {
+        await loadSettings();
+        await loadEvents();
+      } catch (error) {
+        document.getElementById('serviceUnavailable').classList.remove('hidden');
+      } finally {
+        button.disabled=false;
+        button.textContent='↻ VOLVER A INTENTAR';
+      }
+    });
+
+    (async () => {
+      try {
+        await loadSettings();
+        await loadEvents();
+      } catch(error) {
+        document.getElementById('serviceUnavailable').classList.remove('hidden');
+        document.getElementById('noActive').classList.add('hidden');
+        document.getElementById('upcomingSection').classList.add('hidden');
+      }
+    })();
+  </script>
+</body>
+</html>
