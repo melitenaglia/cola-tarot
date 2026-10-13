@@ -1,0 +1,1705 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Administración · Soy Amor Universal 111</title>
+  <link rel="stylesheet" href="../styles.css?v=20261012-1">
+</head>
+<body>
+  <main class="container">
+    <section id="loginCard" class="card login-card">
+      <h1>Administración</h1>
+      <p class="meta">Ingresá con tu email y contraseña.</p>
+      <form id="loginForm" class="stack">
+        <label>Email<input id="email" type="email" required autocomplete="email"></label>
+        <label>Contraseña<input id="password" type="password" required autocomplete="current-password"></label>
+        <button class="btn btn-primary" type="submit">ENTRAR</button>
+        <button id="forgotPasswordBtn" class="btn btn-quiet auth-link-btn" type="button">¿Olvidaste tu contraseña?</button>
+        <div id="loginMsg" class="note"></div>
+      </form>
+      <button id="serviceHelpToggle" class="btn btn-quiet auth-link-btn" type="button" aria-expanded="false" aria-controls="serviceHelp">¿El servicio no funciona?</button>
+      <div id="serviceHelp" class="hidden" role="status" aria-live="polite" style="margin-top:10px;padding:14px;border:1px solid var(--line);border-radius:8px">
+        <strong style="display:block;margin-bottom:6px">Reactivar el servicio</strong>
+        <p id="serviceMsg" class="note" style="margin:0 0 12px">Si Cloudflare no responde, podés comprobarlo sin modificar los eventos ni los turnos.</p>
+        <div class="stack" style="gap:8px">
+          <a class="btn btn-secondary" href="/health" target="_blank" rel="noopener noreferrer">ABRIR SUPABASE PARA REACTIVAR ↗</a>
+          <button id="checkServiceBtn" class="btn btn-quiet" type="button">↻ COMPROBAR CONEXIÓN</button>
+        </div>
+        <p class="note" style="margin:9px 0 0">Entrá con la cuenta autorizada de Cloudflare, pulsá «Comprobar conexión» si aparece y volvé acá para comprobar la conexión. Este acceso requiere permisos en Cloudflare.</p>
+      </div>
+    </section>
+
+    <section id="forgotPasswordCard" class="card login-card hidden">
+      <button id="backToLoginBtn" class="btn btn-quiet auth-back-btn" type="button">← Volver</button>
+      <h1>Restablecer contraseña</h1>
+      <p class="meta">Ingresá el email de tu usuario. Te enviaremos un enlace para crear una nueva contraseña.</p>
+      <form id="forgotPasswordForm" class="stack">
+        <label>Email<input id="resetEmail" type="email" required autocomplete="email"></label>
+        <button class="btn btn-primary" type="submit">ENVIAR ENLACE</button>
+        <div id="forgotPasswordMsg" class="note"></div>
+      </form>
+    </section>
+
+    <section id="newPasswordCard" class="card login-card hidden">
+      <h1>Nueva contraseña</h1>
+      <p class="meta">Elegí una nueva contraseña para volver a entrar al panel.</p>
+      <form id="newPasswordForm" class="stack">
+        <label>Nueva contraseña<input id="newPassword" type="password" minlength="8" required autocomplete="new-password"></label>
+        <label>Repetir contraseña<input id="newPasswordConfirm" type="password" minlength="8" required autocomplete="new-password"></label>
+        <button class="btn btn-primary" type="submit">GUARDAR CONTRASEÑA</button>
+        <div id="newPasswordMsg" class="note"></div>
+      </form>
+    </section>
+
+    <section id="app" class="hidden">
+      <div class="topbar admin-header">
+        <div class="admin-header-left">
+          <button id="adminBackBtn" class="btn btn-quiet app-back-btn hidden" type="button" aria-label="Volver a eventos">←</button>
+          <div>
+            <h1 style="margin:0">Panel de eventos</h1>
+            <div id="whoami" class="small"></div>
+          </div>
+        </div>
+        <div class="admin-header-actions">
+          <button id="menuToggleBtn" class="btn btn-secondary menu-toggle" type="button" aria-expanded="false" aria-controls="adminTabs">☰</button>
+          <button id="logoutBtn" class="btn btn-secondary">Salir</button>
+        </div>
+      </div>
+
+      <div id="adminTabs" class="tabs">
+        <button class="tab active" data-tab="events">Eventos</button>
+        <button class="tab" data-tab="new">Nuevo evento</button>
+        <button class="tab" data-tab="services">Servicios</button>
+        <button class="tab" data-tab="settings">Configuración</button>
+        <button class="tab" data-tab="users">Usuarios</button>
+        <button class="tab" data-tab="trash">Papelera</button>
+      </div>
+
+      <section id="tab-events" class="tabpane">
+        <div id="eventFilterTabs" class="event-filter-tabs" role="tablist" aria-label="Filtrar eventos">
+          <button class="event-filter active" type="button" data-filter="today">HOY <span id="countToday">0</span></button>
+          <button class="event-filter" type="button" data-filter="future">FUTUROS <span id="countFuture">0</span></button>
+          <button class="event-filter" type="button" data-filter="past">REALIZADOS <span id="countPast">0</span></button>
+        </div>
+        <div id="eventsList" class="list"></div>
+      </section>
+
+      <section id="tab-turns" class="tabpane hidden">
+        <div class="card">
+          <div class="topbar turns-admin-head">
+            <div class="turns-admin-event">
+              <img id="turnsEventThumb" class="admin-event-thumb turns-event-thumb hidden" alt="">
+              <div>
+                <div class="small">GESTIÓN DE TURNOS</div>
+                <h2 id="turnsEventName" style="margin:4px 0 0"></h2>
+                <div id="turnsEventMeta" class="meta"></div>
+                <span id="turnsQueueStatus" class="pill pill-closed" style="margin-top:7px">LISTA DE ESPERA CERRADA</span>
+              </div>
+            </div>
+            <div class="actions turns-admin-actions">
+              <button id="turnsQueueBtn" class="btn btn-ok" type="button">ABRIR LISTA</button>
+              <button id="refreshTurnsBtn" class="btn btn-secondary" type="button">↻ ACTUALIZAR</button>
+            </div>
+          </div>
+
+          <div id="turnsLastUpdated" class="small" style="text-align:right;margin-top:2px"></div>
+          <div class="grid grid-2 metrics-grid" style="margin-top:12px">
+            <div class="stat">Pendientes<strong id="waitingCount">0</strong></div>
+            <div class="stat">Atendidos<strong id="doneCount">0</strong></div>
+          </div>
+
+          <div class="next-turn-panel" style="margin-top:16px;text-align:center">
+            <div class="small">PRÓXIMO TURNO</div>
+            <div id="nextTurnBig" class="big-turn" style="margin:4px 0">—</div>
+            <div id="nextTurnSearch" class="meta"></div>
+
+            <div class="turn-main-actions">
+              <button id="copyNextCodeBtn" class="btn btn-secondary hidden" type="button">COPIAR CÓDIGO</button>
+              <button id="attendNextBtn" class="btn btn-primary hidden" type="button">MARCAR COMO ATENDIDO</button>
+            </div>
+
+            <button id="undoLastBtn" class="btn btn-quiet hidden" type="button">← VOLVER AL TURNO ANTERIOR</button>
+          </div>
+
+          <p class="note" style="margin:14px 0 0;text-align:center">
+            Copiá el código, buscá el mensaje en WhatsApp y, cuando termine la lectura, marcá el turno como atendido. El siguiente aparece automáticamente.
+          </p>
+
+          <details class="turn-history" style="margin-top:18px">
+            <summary>Ver todos los turnos</summary>
+            <div id="turnsList" class="list" style="margin-top:12px"></div>
+          </details>
+        </div>
+      </section>
+
+      <section id="tab-new" class="tabpane hidden">
+        <div class="card">
+          <h2 id="newEventTitle">Nuevo evento</h2>
+          <div id="duplicateEventNote" class="note hidden" style="margin-bottom:12px"></div>
+          <form id="eventForm" class="stack">
+            <div class="grid grid-2">
+              <label>Nombre del evento<input id="evName" required placeholder="Tarot & Cocktail"></label>
+              <label>Fecha<input id="evDate" type="date" required></label>
+              <label>Hora inicio<input id="evStart" type="time" required></label>
+              <label>Hora fin<input id="evEnd" type="time" required><span class="small">Si termina después de medianoche, poné la hora real (ej. 02:00).</span></label>
+              <label>Lugar<input id="evLocation" placeholder="Tinta Roja"></label>
+              <label>Dirección<input id="evAddress"></label>
+            </div>
+            <label>Link Google Maps<input id="evMaps" type="url"></label>
+            <label>Web oficial / entradas<input id="evOfficial" type="url" placeholder="https://..."></label>
+            <label>Imagen del evento<input id="evImage" type="file" accept="image/jpeg,image/png,image/webp,image/gif"><span class="small">JPG, PNG, WEBP o GIF · máximo 5 MB.</span></label>
+            <label>Descripción<textarea id="evDescription"></textarea></label>
+            <div class="grid grid-2">
+              <label>Máximo de turnos (opcional)<input id="evMax" type="number" min="1"></label>
+              <label>Mostrar en próximos eventos<select id="evUpcoming"><option value="true">Sí</option><option value="false">No</option></select></label>
+            </div>
+            <hr>
+            <h3>Servicios del evento</h3>
+            <p class="note" style="margin-top:-4px">Elegí uno o varios servicios del catálogo. Se copiarán al evento y después podés personalizarlos sin modificar el catálogo general.</p>
+            <div id="newEventServiceChoices" class="service-choice-list">
+              <div class="note">Cargando servicios…</div>
+            </div>
+            <button class="btn btn-primary" type="submit">GUARDAR EVENTO</button>
+            <div id="eventMsg" class="note"></div>
+          </form>
+        </div>
+      </section>
+
+      <section id="tab-edit" class="tabpane hidden">
+        <div class="card">
+          <div class="topbar">
+            <h2 style="margin:0">Editar evento</h2>
+            <button id="cancelEditBtn" class="btn btn-secondary" type="button">Cancelar</button>
+          </div>
+          <form id="editEventForm" class="stack">
+            <input id="editId" type="hidden">
+            <div class="grid grid-2">
+              <label>Nombre del evento<input id="editName" required></label>
+              <label>Fecha<input id="editDate" type="date" required></label>
+              <label>Hora inicio<input id="editStart" type="time" required></label>
+              <label>Hora fin<input id="editEnd" type="time" required><span class="small">Si termina después de medianoche, poné la hora real (ej. 02:00).</span></label>
+              <label>Lugar<input id="editLocation"></label>
+              <label>Dirección<input id="editAddress"></label>
+            </div>
+            <label>Link Google Maps<input id="editMaps" type="url"></label>
+            <label>Web oficial / entradas<input id="editOfficial" type="url" placeholder="https://..."></label>
+            <div id="editImagePreviewWrap" class="event-image-preview-wrap hidden">
+              <img id="editImagePreview" class="event-image-preview" alt="Imagen actual del evento" onerror="this.parentElement.classList.add('hidden');this.removeAttribute('src')">
+            </div>
+            <label>Cambiar imagen<input id="editImage" type="file" accept="image/jpeg,image/png,image/webp,image/gif"><span class="small">Si no elegís otra imagen, se mantiene la actual.</span></label>
+            <label>Descripción<textarea id="editDescription"></textarea></label>
+            <div class="grid grid-2">
+              <label>Máximo de turnos (opcional)<input id="editMax" type="number" min="1"></label>
+              <label>Mostrar en próximos eventos<select id="editUpcoming"><option value="true">Sí</option><option value="false">No</option></select></label>
+            </div>
+            <button class="btn btn-primary" type="submit">GUARDAR CAMBIOS</button>
+            <div id="editMsg" class="note"></div>
+          </form>
+
+          <hr>
+          <div class="topbar" style="margin-bottom:8px">
+            <div>
+              <h3 style="margin:0">Servicios del evento</h3>
+              <div class="small">Son copias del catálogo. Personalizarlos acá no cambia el servicio general.</div>
+            </div>
+          </div>
+
+          <div id="editEventServicesList" class="list"></div>
+
+          <div class="grid grid-2" style="margin-top:12px">
+            <label>Agregar desde catálogo
+              <select id="addEventServiceSelect"></select>
+            </label>
+            <div style="display:flex;align-items:end">
+              <button id="addEventServiceBtn" class="btn btn-secondary" type="button" style="width:100%">AGREGAR SERVICIO</button>
+            </div>
+          </div>
+
+          <div id="editEventServiceBox" class="list-item hidden" style="margin-top:14px">
+            <div class="topbar">
+              <div>
+                <h3 style="margin:0">Personalizar servicio</h3>
+                <div class="small">Este cambio afecta solo a este evento.</div>
+              </div>
+              <button id="cancelEventServiceEditBtn" class="btn btn-secondary" type="button">Cancelar</button>
+            </div>
+            <form id="eventServiceForm" class="stack">
+              <input id="eventSvcId" type="hidden">
+              <label>Nombre<input id="eventSvcName" required></label>
+              <label class="checkline"><input id="eventSvcIncluded" type="checkbox"> Incluido con la entrada</label>
+              <div id="eventSvcPaidFields" class="grid grid-2">
+                <label>Duración (min)<input id="eventSvcDuration" type="number" min="1"></label>
+                <label>Precio (€)<input id="eventSvcPrice" type="number" min="0" step="0.01"></label>
+              </div>
+              <label>Descripción<textarea id="eventSvcDescription"></textarea></label>
+              <label>Texto adicional para WhatsApp
+                <textarea id="eventSvcWhatsapp" placeholder="La app agrega automáticamente código, turno, servicio, duración y precio."></textarea>
+              </label>
+              <button class="btn btn-primary" type="submit">GUARDAR PERSONALIZACIÓN</button>
+              <div id="eventSvcMsg" class="note"></div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-services" class="tabpane hidden">
+        <div class="card">
+          <div class="topbar">
+            <div>
+              <h2 style="margin:0">Catálogo de servicios</h2>
+              <div class="meta">Estos son los servicios base que podés reutilizar en distintos eventos.</div>
+            </div>
+            <button id="newServiceTemplateBtn" class="btn btn-primary" type="button">NUEVO SERVICIO</button>
+          </div>
+
+          <div id="serviceTemplatesList" class="list"></div>
+
+          <div id="serviceTemplateFormBox" class="list-item hidden" style="margin-top:14px">
+            <div class="topbar">
+              <h3 id="serviceTemplateFormTitle" style="margin:0">Nuevo servicio</h3>
+              <button id="cancelServiceTemplateBtn" class="btn btn-secondary" type="button">Cancelar</button>
+            </div>
+            <form id="serviceTemplateForm" class="stack">
+              <input id="serviceTemplateId" type="hidden">
+              <label>Nombre<input id="serviceTemplateName" required></label>
+              <label class="checkline"><input id="serviceTemplateIncluded" type="checkbox"> Incluido con la entrada</label>
+              <div id="serviceTemplatePaidFields" class="grid grid-2">
+                <label>Duración (min)<input id="serviceTemplateDuration" type="number" min="1"></label>
+                <label>Precio (€)<input id="serviceTemplatePrice" type="number" min="0" step="0.01"></label>
+              </div>
+              <label>Descripción<textarea id="serviceTemplateDescription"></textarea></label>
+              <label>Texto adicional para WhatsApp
+                <textarea id="serviceTemplateWhatsapp" placeholder="Ej.: Carta Natal + mensaje del inconsciente."></textarea>
+              </label>
+              <label class="checkline"><input id="serviceTemplateActive" type="checkbox" checked> Disponible para nuevos eventos</label>
+              <button class="btn btn-primary" type="submit">GUARDAR SERVICIO</button>
+              <div id="serviceTemplateMsg" class="note"></div>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-settings" class="tabpane hidden">
+        <div class="card">
+          <h2>Configuración pública</h2>
+          <form id="settingsForm" class="stack">
+            <label>Nombre / marca<input id="setBrand"></label>
+            <label>Subtítulo público (opcional)<input id="setSubtitle" placeholder="Ej.: Reservá tu turno para el evento"></label>
+            <label>WhatsApp<input id="setWhatsapp" placeholder="346..."></label>
+            <label>Instagram<input id="setInstagram" type="url"></label>
+            <label>Web<input id="setWebsite" type="url"></label>
+            <label>Link para reseña de Google<input id="setReview" type="url"></label>
+
+            <hr>
+            <h3>Mensajes para clientes</h3>
+            <label>Instrucción antes de WhatsApp
+              <textarea id="setWhatsappInstruction" rows="2"></textarea>
+            </label>
+            <label>Mensaje mientras espera
+              <textarea id="setWaitingMessage" rows="2"></textarea>
+            </label>
+            <label>Título al finalizar
+              <input id="setCompletedTitle">
+            </label>
+            <label>Mensaje al finalizar
+              <textarea id="setCompletedMessage" rows="3"></textarea>
+            </label>
+            <label>Texto para pedir reseña
+              <textarea id="setReviewPrompt" rows="2"></textarea>
+            </label>
+            <label>Mensaje cuando la lista del día ya cerró
+              <textarea id="setClosedMessage" rows="3"></textarea>
+            </label>
+
+            <button class="btn btn-primary" type="submit">GUARDAR</button>
+            <div id="settingsMsg" class="note"></div>
+          </form>
+        </div>
+      </section>
+
+      <section id="tab-users" class="tabpane hidden">
+        <div class="card">
+          <h2>Usuarios</h2>
+          <div id="usersList" class="list"></div>
+
+          <div id="editUserBox" class="list-item hidden" style="margin-top:14px">
+            <div class="topbar">
+              <h3 style="margin:0">Editar usuario</h3>
+              <button id="cancelUserEditBtn" class="btn btn-secondary" type="button">Cancelar</button>
+            </div>
+            <form id="editUserForm" class="stack">
+              <input id="editUsrId" type="hidden">
+              <div class="grid grid-2">
+                <label>Nombre<input id="editUsrName" required></label>
+                <label>Email<input id="editUsrEmail" type="email" required></label>
+                <label>Nueva contraseña (opcional)<input id="editUsrPassword" type="password" minlength="8" placeholder="Dejar vacío para no cambiarla"></label>
+                <label>Rol<select id="editUsrRole"><option value="staff">Staff</option><option value="admin">Admin</option></select></label>
+              </div>
+              <label class="checkline"><input id="editUsrActive" type="checkbox"> Usuario activo</label>
+              <button class="btn btn-primary" type="submit">GUARDAR CAMBIOS</button>
+              <div id="editUserMsg" class="note"></div>
+            </form>
+          </div>
+
+          <hr>
+          <h3>Crear usuario</h3>
+          <form id="userForm" class="stack">
+            <div class="grid grid-2">
+              <label>Nombre<input id="usrName" required></label>
+              <label>Email<input id="usrEmail" type="email" required></label>
+              <label>Contraseña<input id="usrPassword" type="password" minlength="8" required></label>
+              <label>Rol<select id="usrRole"><option value="staff">Staff</option><option value="admin">Admin</option></select></label>
+            </div>
+            <button class="btn btn-primary" type="submit">CREAR USUARIO</button>
+            <div id="userMsg" class="note"></div>
+          </form>
+        </div>
+      </section>
+
+      <section id="tab-trash" class="tabpane hidden">
+        <div class="card">
+          <div class="topbar">
+            <div>
+              <h2 style="margin:0">Papelera</h2>
+              <div class="meta">Los eventos eliminados quedan acá hasta que los borres definitivamente.</div>
+            </div>
+          </div>
+          <div id="trashList" class="list"></div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script src="/compat.js"></script>
+  
+  <script>
+    const { createClient } = supabase;
+    const db = createClient(SAU_CONFIG.supabaseUrl, SAU_CONFIG.supabaseKey);
+    let session = null;
+    let profile = null;
+    let cachedEvents = [];
+    let currentTurnsEventId = null;
+    let currentTurns = [];
+    let turnsRefreshTimer = null;
+    let cachedUsers = [];
+    let cachedTrash = [];
+    let cachedServiceTemplates = [];
+    let currentEditEventId = null;
+    let duplicateSourceEventId = null;
+    let eventListFilter = 'today';
+
+    const q = id => document.getElementById(id);
+    const localDT = (date,time) => new Date(date+'T'+time+':00').toISOString();
+    const endDT = (date,startTime,endTime) => {
+      const start = new Date(date+'T'+startTime+':00');
+      const end = new Date(date+'T'+endTime+':00');
+      if (end <= start) end.setDate(end.getDate()+1);
+      return end.toISOString();
+    };
+    const hourLabel = iso => {
+      const d=new Date(iso);
+      const h=d.getHours();
+      const m=d.getMinutes();
+      return m ? h+':'+String(m).padStart(2,'0')+' hs' : h+' hs';
+    };
+    const eventSpan = (start,end) => {
+      const d=new Date(start);
+      const date=new Intl.DateTimeFormat('es-ES',{day:'2-digit',month:'2-digit',year:'2-digit'}).format(d);
+      return date+' · '+hourLabel(start)+' - '+hourLabel(end);
+    };
+    const eventCode = date => {
+      const [y,m,d] = date.split('-');
+      return d+m+y.slice(2);
+    };
+    const fmt = iso => new Intl.DateTimeFormat('es-ES',{dateStyle:'medium',timeStyle:'short'}).format(new Date(iso));
+    const localParts = iso => {
+      const d = new Date(iso);
+      const pad = n => String(n).padStart(2,'0');
+      return {
+        date: d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()),
+        time: pad(d.getHours())+':'+pad(d.getMinutes())
+      };
+    };
+    const serviceLabel = s => {
+      const parts = [];
+      if (s.included_with_entry) parts.push('Incluida con la entrada');
+      if (!s.included_with_entry && s.duration_minutes) parts.push(s.duration_minutes+' min');
+      if (!s.included_with_entry && s.price_cents != null) parts.push((s.price_cents/100).toFixed(0)+' €');
+      return s.name + (parts.length ? ' · '+parts.join(' · ') : '');
+    };
+
+    function showTab(name){
+      if(name!=='turns' && turnsRefreshTimer){
+        clearInterval(turnsRefreshTimer);
+        turnsRefreshTimer=null;
+      }
+      document.querySelectorAll('.tab').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
+      document.querySelectorAll('.tabpane').forEach(p=>p.classList.add('hidden'));
+      q('tab-'+name).classList.remove('hidden');
+      q('adminBackBtn').classList.toggle('hidden',name==='events');
+      if(name==='events') loadEvents();
+      if(name==='new') loadServiceTemplates();
+      if(name==='services') loadServiceTemplates();
+      if(name==='settings') loadSettings();
+      if(name==='users') loadUsers();
+      if(name==='trash') loadTrash();
+    }
+
+    const menuBtn=q('menuToggleBtn');
+    const adminTabs=q('adminTabs');
+
+    menuBtn.addEventListener('click',()=>{
+      const open=adminTabs.classList.toggle('mobile-open');
+      menuBtn.setAttribute('aria-expanded',String(open));
+      menuBtn.textContent=open?'×':'☰';
+    });
+
+    document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{
+      if(b.dataset.tab==='new') resetNewEventMode();
+      showTab(b.dataset.tab);
+      adminTabs.classList.remove('mobile-open');
+      menuBtn.setAttribute('aria-expanded','false');
+      menuBtn.textContent='☰';
+    }));
+    q('cancelEditBtn').addEventListener('click',()=>showTab('events'));
+    q('adminBackBtn').addEventListener('click',()=>showTab('events'));
+    q('refreshTurnsBtn').addEventListener('click',()=>refreshTurnsScreen());
+    q('cancelUserEditBtn').addEventListener('click',()=>{
+      q('editUserBox').classList.add('hidden');
+      q('editUserMsg').textContent='';
+    });
+
+    function syncPaidFields(checkboxId, containerId){
+      const checkbox=q(checkboxId);
+      const container=q(containerId);
+      if(!checkbox || !container)return;
+      const checked=checkbox.checked;
+      container.style.opacity=checked?'.45':'1';
+      container.querySelectorAll('input').forEach(i=>i.disabled=checked);
+    }
+
+    q('serviceTemplateIncluded').addEventListener('change',()=>syncPaidFields('serviceTemplateIncluded','serviceTemplatePaidFields'));
+    q('eventSvcIncluded').addEventListener('change',()=>syncPaidFields('eventSvcIncluded','eventSvcPaidFields'));
+
+    const recoveryRedirectUrl = () => {
+      const url=new URL(window.location.href);
+      url.hash='';
+      url.search='';
+      url.searchParams.set('recovery','1');
+      return url.toString();
+    };
+
+    const isRecoveryMode = () =>
+      new URLSearchParams(window.location.search).get('recovery')==='1' ||
+      window.location.hash.includes('type=recovery');
+
+    function hideAuthCards(){
+      q('loginCard').classList.add('hidden');
+      q('forgotPasswordCard').classList.add('hidden');
+      q('newPasswordCard').classList.add('hidden');
+    }
+
+    function showLoginCard(message=''){
+      hideAuthCards();
+      q('app').classList.add('hidden');
+      q('loginCard').classList.remove('hidden');
+      q('loginMsg').textContent=message;
+    }
+
+    function showForgotPasswordCard(){
+      hideAuthCards();
+      q('app').classList.add('hidden');
+      q('forgotPasswordCard').classList.remove('hidden');
+      q('forgotPasswordMsg').textContent='';
+      q('resetEmail').value=q('email').value.trim();
+      setTimeout(()=>q('resetEmail').focus(),0);
+    }
+
+    function showNewPasswordCard(){
+      hideAuthCards();
+      q('app').classList.add('hidden');
+      q('newPasswordCard').classList.remove('hidden');
+      q('newPassword').value='';
+      q('newPasswordConfirm').value='';
+      q('newPasswordMsg').textContent='';
+      setTimeout(()=>q('newPassword').focus(),0);
+    }
+
+    function showServiceHelp(message=''){
+      q('serviceHelp').classList.remove('hidden');
+      q('serviceHelpToggle').setAttribute('aria-expanded','true');
+      if(message) q('serviceMsg').textContent=message;
+    }
+
+    async function checkServiceHealth(showSuccess=false){
+      const btn=q('checkServiceBtn');
+      btn.disabled=true;
+      if(showSuccess) showServiceHelp('Comprobando si Cloudflare responde…');
+      let timeoutId;
+      try{
+        const request=db.from('app_settings').select('id').eq('id',1).limit(1);
+        const timeout=new Promise((_,reject)=>{
+          timeoutId=setTimeout(()=>reject(new Error('Tiempo de espera agotado')),10000);
+        });
+        const {error}=await Promise.race([request,timeout]);
+        if(error) throw error;
+        if(showSuccess) showServiceHelp('✓ Conexión restablecida. Ya podés ingresar al panel.');
+        else {
+          q('serviceHelp').classList.add('hidden');
+          q('serviceHelpToggle').setAttribute('aria-expanded','false');
+        }
+        return true;
+      }catch(error){
+        showServiceHelp('No pudimos comunicarnos con Cloudflare. Es posible que el proyecto tenga una incidencia. Abrí Cloudflare para comprobarlo y comprobarlo si corresponde.');
+        return false;
+      }finally{
+        clearTimeout(timeoutId);
+        btn.disabled=false;
+      }
+    }
+
+    q('serviceHelpToggle').addEventListener('click',()=>{
+      const isHidden=q('serviceHelp').classList.contains('hidden');
+      q('serviceHelp').classList.toggle('hidden',!isHidden);
+      q('serviceHelpToggle').setAttribute('aria-expanded',String(isHidden));
+    });
+    q('checkServiceBtn').addEventListener('click',async()=>{
+      const ok=await checkServiceHealth(true);
+      if(ok) await ensureAuth();
+    });
+
+    async function ensureAuth(){
+      const { data } = await db.auth.getSession();
+      session = data.session;
+
+      if(isRecoveryMode()){
+        if(session){
+          showNewPasswordCard();
+          return;
+        }
+        showLoginCard('El enlace para restablecer la contraseña no es válido o ya venció.');
+        return;
+      }
+
+      if(!session){
+        const params=new URLSearchParams(window.location.search);
+        const changed=params.get('password')==='updated';
+        showLoginCard(changed?'Contraseña actualizada. Ya podés ingresar con la nueva contraseña.':'');
+        if(changed) history.replaceState({},'',window.location.pathname);
+        return;
+      }
+
+      const { data: p, error: profileError } = await db.from('profiles').select('*').eq('user_id',session.user.id).maybeSingle();
+      if(profileError){
+        showLoginCard('No pudimos comprobar el acceso al panel. Revisá la conexión con Cloudflare.');
+        showServiceHelp('No se pudo consultar el proyecto. Si tiene una incidencia, abrí Cloudflare para comprobarlo y luego comprobá la conexión.');
+        return;
+      }
+      profile = p;
+      if(!profile || !profile.active || !['admin','staff'].includes(profile.role)){
+        await db.auth.signOut();
+        showLoginCard('Tu usuario todavía no tiene acceso al panel.');
+        return;
+      }
+      hideAuthCards();
+      q('app').classList.remove('hidden');
+      q('whoami').textContent=(profile.display_name||session.user.email)+' · '+profile.role;
+      if(profile.role!=='admin'){
+        document.querySelector('[data-tab="users"]').classList.add('hidden');
+        document.querySelector('[data-tab="settings"]').classList.add('hidden');
+        document.querySelector('[data-tab="trash"]').classList.add('hidden');
+      }
+      loadEvents();
+    }
+
+    q('loginForm').addEventListener('submit',async e=>{
+      e.preventDefault();
+      q('loginMsg').textContent='Ingresando…';
+      const { error } = await db.auth.signInWithPassword({email:q('email').value.trim(),password:q('password').value});
+      if(error){
+        q('loginMsg').textContent=error.message;
+        if(/fetch|network|timeout|unavailable|5\\d\\d|conexi[oó]n/i.test(error.message||'')) checkServiceHealth();
+        return;
+      }
+      q('loginMsg').textContent='';
+      await ensureAuth();
+    });
+
+    q('forgotPasswordBtn').addEventListener('click',showForgotPasswordCard);
+    q('backToLoginBtn').addEventListener('click',()=>showLoginCard());
+
+    q('forgotPasswordForm').addEventListener('submit',async e=>{
+      e.preventDefault();
+      const email=q('resetEmail').value.trim();
+      q('forgotPasswordMsg').textContent='Enviando…';
+      const { error }=await db.auth.resetPasswordForEmail(email,{
+        redirectTo:recoveryRedirectUrl()
+      });
+      if(error){
+        q('forgotPasswordMsg').textContent=
+          error.message?.toLowerCase().includes('rate')
+            ? 'Se hicieron demasiados intentos. Esperá unos minutos y probá de nuevo.'
+            : 'No pudimos enviar el correo. Probá nuevamente en unos minutos.';
+        return;
+      }
+      q('forgotPasswordMsg').innerHTML=
+        '<strong>Revisá tu correo.</strong><br>Si existe una cuenta con ese email, vas a recibir un enlace para crear una nueva contraseña. Revisá también Spam o Correo no deseado.';
+    });
+
+    q('newPasswordForm').addEventListener('submit',async e=>{
+      e.preventDefault();
+      const password=q('newPassword').value;
+      const confirmPassword=q('newPasswordConfirm').value;
+      if(password.length<8){
+        q('newPasswordMsg').textContent='La contraseña debe tener al menos 8 caracteres.';
+        return;
+      }
+      if(password!==confirmPassword){
+        q('newPasswordMsg').textContent='Las contraseñas no coinciden.';
+        return;
+      }
+      q('newPasswordMsg').textContent='Guardando…';
+      const { error }=await db.auth.updateUser({password});
+      if(error){
+        q('newPasswordMsg').textContent='No pudimos actualizar la contraseña. Pedí un nuevo enlace e intentá otra vez.';
+        return;
+      }
+      await db.auth.signOut();
+      window.location.replace(window.location.pathname+'?password=updated');
+    });
+
+    db.auth.onAuthStateChange((event)=>{
+      if(event==='PASSWORD_RECOVERY'){
+        showNewPasswordCard();
+      }
+    });
+
+    q('logoutBtn').addEventListener('click',async()=>{await db.auth.signOut();location.reload();});
+
+    const localDateOnly = value => {
+      const d=new Date(value);
+      const pad=n=>String(n).padStart(2,'0');
+      return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+    };
+
+    function renderEventsList(){
+      const box=q('eventsList');
+      const today=localDateOnly(new Date());
+
+      const now=new Date();
+      const todayEvents=cachedEvents.filter(e=>
+        localDateOnly(e.starts_at)===today ||
+        (now>=new Date(e.starts_at) && now<=new Date(e.ends_at))
+      );
+      const todayIds=new Set(todayEvents.map(e=>e.id));
+      const futureEvents=cachedEvents.filter(e=>!todayIds.has(e.id) && new Date(e.starts_at)>now);
+      const pastEvents=cachedEvents.filter(e=>!todayIds.has(e.id) && new Date(e.ends_at)<now);
+
+      q('countToday').textContent=todayEvents.length;
+      q('countFuture').textContent=futureEvents.length;
+      q('countPast').textContent=pastEvents.length;
+
+      const byNewest=(x,y)=>new Date(y.starts_at)-new Date(x.starts_at);
+      const bySoonest=(x,y)=>new Date(x.starts_at)-new Date(y.starts_at);
+      todayEvents.sort(bySoonest);
+      futureEvents.sort(bySoonest);
+      pastEvents.sort(byNewest);
+
+      const groups={today:todayEvents,future:futureEvents,past:pastEvents};
+      const items=groups[eventListFilter]||[];
+
+      document.querySelectorAll('.event-filter').forEach(b=>{
+        b.classList.toggle('active',b.dataset.filter===eventListFilter);
+      });
+
+      if(!items.length){
+        const labels={today:'No hay eventos hoy.',future:'No hay eventos futuros.',past:'Todavía no hay eventos realizados.'};
+        box.innerHTML='<div class="card"><p class="note">'+labels[eventListFilter]+'</p></div>';
+        return;
+      }
+
+      box.innerHTML=items.map(e=>`
+        <div class="card">
+          <div class="topbar admin-event-card-head">
+            <div class="admin-event-card-main">
+              ${e.image_url?'<img class="admin-event-thumb" src="'+e.image_url+'" alt="" loading="lazy" onerror="this.remove()">':''}
+              <div class="admin-event-card-copy">
+                <span class="pill ${e.queue_status==='open'?'pill-open':'pill-closed'}">${e.queue_status==='open'?'LISTA DE ESPERA ABIERTA':'LISTA DE ESPERA CERRADA'}</span>
+                <h2 style="margin:10px 0 5px">${e.name}</h2>
+                <div class="meta">${eventSpan(e.starts_at,e.ends_at)}${e.location_name?' · '+e.location_name:''}<br>Código: ${e.event_code}</div>
+              </div>
+            </div>
+            <div class="actions">
+              <button class="btn btn-secondary" onclick="editEvent('${e.id}')">EDITAR</button>
+              <button class="btn btn-secondary" onclick="duplicateEvent('${e.id}')">DUPLICAR</button>
+              ${profile?.role==='admin'
+                ? `<button class="btn btn-danger" onclick="deleteEvent('${e.id}')">ELIMINAR</button>`
+                : ''}
+            </div>
+          </div>
+          <div class="grid grid-2 metrics-grid">
+            <div class="stat">Turnos emitidos<strong>${(e.turns||[]).length}</strong></div>
+            <div class="stat">Pendientes<strong>${(e.turns||[]).filter(t=>['issued','called','in_service'].includes(t.status)).length}</strong></div>
+          </div>
+          <div class="actions" style="margin-top:14px">
+            <button class="btn btn-primary" onclick="openTurns('${e.id}')">GESTIONAR TURNOS</button>
+            ${eventListFilter==='today'?'<button class="btn btn-secondary" type="button" onclick="refreshEventCard(this)">↻ ACTUALIZAR</button>':''}
+            <button class="btn ${e.queue_status==='open'?'btn-danger':'btn-ok'}" onclick="toggleQueue('${e.id}',${e.queue_status!=='open'})">${e.queue_status==='open'?'CERRAR LISTA':'ABRIR LISTA'}</button>
+          </div>
+          ${(e.services||[]).filter(s=>s.active).length ? '<div class="note" style="margin-top:12px">'+e.services.filter(s=>s.active).sort((x,y)=>(x.sort_order||10)-(y.sort_order||10)).map(serviceLabel).join('<br>')+'</div>':''}
+        </div>`).join('');
+    }
+
+    document.querySelectorAll('.event-filter').forEach(btn=>{
+      btn.addEventListener('click',()=>{
+        eventListFilter=btn.dataset.filter;
+        renderEventsList();
+      });
+    });
+
+    async function loadEvents(){
+      const { data, error } = await db.from('events')
+        .select('*, services(*), turns(id,number,code,status,created_at,updated_at,service_id)')
+        .is('deleted_at',null)
+        .order('starts_at',{ascending:false});
+      const box=q('eventsList');
+      if(error){box.innerHTML='<div class="note">'+error.message+'</div>';return;}
+      cachedEvents=data||[];
+      if(!cachedEvents.length){
+        q('countToday').textContent='0';
+        q('countFuture').textContent='0';
+        q('countPast').textContent='0';
+        box.innerHTML='<div class="card"><p class="note">Todavía no hay eventos.</p></div>';
+        return;
+      }
+      renderEventsList();
+    }
+
+    async function uploadEventImage(file,eventId){
+      if(!file)return null;
+      if(file.size>5242880) throw new Error('La imagen supera el máximo de 5 MB.');
+      const ext=((file.name.split('.').pop()||'jpg').toLowerCase().replace(/[^a-z0-9]/g,''))||'jpg';
+      const token=(crypto.randomUUID?crypto.randomUUID():Math.random().toString(36).slice(2));
+      const path=eventId+'/'+Date.now()+'-'+token+'.'+ext;
+      const { error }=await db.storage.from('event-images').upload(path,file,{
+        cacheControl:'3600',
+        upsert:false,
+        contentType:file.type||undefined
+      });
+      if(error)throw error;
+      return db.storage.from('event-images').getPublicUrl(path).data.publicUrl;
+    }
+
+    function resetNewEventMode(){
+      duplicateSourceEventId=null;
+      q('eventForm').reset();
+      q('newEventTitle').textContent='Nuevo evento';
+      q('duplicateEventNote').textContent='';
+      q('duplicateEventNote').classList.add('hidden');
+      q('eventMsg').textContent='';
+      loadServiceTemplates().then(renderNewEventServiceChoices);
+    }
+
+    window.duplicateEvent=id=>{
+      const e=cachedEvents.find(x=>x.id===id);
+      if(!e)return;
+      const start=localParts(e.starts_at), end=localParts(e.ends_at);
+      duplicateSourceEventId=e.id;
+
+      q('eventForm').reset();
+      q('newEventTitle').textContent='Duplicar evento';
+      q('duplicateEventNote').textContent='Copiamos todo el evento, incluida la imagen y los servicios. Solo falta elegir la nueva fecha.';
+      q('duplicateEventNote').classList.remove('hidden');
+
+      q('evName').value=e.name||'';
+      q('evDate').value='';
+      q('evStart').value=start.time;
+      q('evEnd').value=end.time;
+      q('evLocation').value=e.location_name||'';
+      q('evAddress').value=e.location_address||'';
+      q('evMaps').value=e.maps_url||'';
+      q('evOfficial').value=e.official_url||'';
+      q('evDescription').value=e.description||'';
+      q('evMax').value=e.max_turns||'';
+      q('evUpcoming').value=String(e.show_upcoming);
+      q('eventMsg').textContent='';
+
+      showTab('new');
+      loadServiceTemplates().then(renderNewEventServiceChoices);
+      q('evDate').focus();
+    };
+
+    window.editEvent=id=>{
+      const e=cachedEvents.find(x=>x.id===id);
+      if(!e)return;
+      const start=localParts(e.starts_at), end=localParts(e.ends_at);
+      currentEditEventId=e.id;
+      q('editId').value=e.id;
+      q('editName').value=e.name||'';
+      q('editDate').value=start.date;
+      q('editStart').value=start.time;
+      q('editEnd').value=end.time;
+      q('editLocation').value=e.location_name||'';
+      q('editAddress').value=e.location_address||'';
+      q('editMaps').value=e.maps_url||'';
+      q('editOfficial').value=e.official_url||'';
+      q('editImage').value='';
+      q('editImagePreviewWrap').classList.toggle('hidden',!e.image_url);
+      q('editImagePreview').src=e.image_url||'';
+      q('editDescription').value=e.description||'';
+      q('editMax').value=e.max_turns||'';
+      q('editUpcoming').value=String(e.show_upcoming);
+      q('editMsg').textContent='';
+      q('editEventServiceBox').classList.add('hidden');
+      showTab('edit');
+      loadServiceTemplates().then(renderEditEventServices);
+    };
+
+    window.deleteEvent=async(id)=>{
+      const e=cachedEvents.find(x=>x.id===id);
+      if(!e)return;
+
+      const ok=confirm(
+        '¿Enviar "' + e.name + '" a la papelera?\n\n' +
+        'Podrás restaurarlo o eliminarlo definitivamente después. Los turnos de prueba también quedarán dentro de ese evento.'
+      );
+      if(!ok)return;
+
+      const { error } = await db.rpc('trash_event',{p_event_id:id});
+      if(error){
+        alert(error.message);
+        return;
+      }
+      await loadEvents();
+    }
+
+    window.toggleQueue=async(id,open)=>{
+      const { error } = await db.rpc('set_event_queue',{p_event_id:id,p_open:open});
+      if(error){ alert(error.message); return false; }
+      await loadEvents();
+      return true;
+    };
+    const turnShort = code => {
+      const m=String(code||'').match(/(T\d+)$/i);
+      return m ? m[1].toUpperCase() : String(code||'');
+    };
+
+    const turnStatusLabel = status => {
+      if(status==='done') return 'ATENDIDO';
+      if(status==='skipped') return 'SALTADO';
+      if(status==='cancelled') return 'CANCELADO';
+      return 'EN ESPERA';
+    };
+
+    async function copyText(value){
+      try{
+        await navigator.clipboard.writeText(value);
+        return true;
+      }catch(_){
+        const el=document.createElement('textarea');
+        el.value=value;
+        el.style.position='fixed';
+        el.style.opacity='0';
+        document.body.appendChild(el);
+        el.select();
+        const ok=document.execCommand('copy');
+        el.remove();
+        return ok;
+      }
+    }
+
+    window.refreshEventCard=async(btn)=>{
+      if(btn){
+        btn.disabled=true;
+        btn.textContent='ACTUALIZANDO…';
+      }
+      await loadEvents();
+      if(btn && document.body.contains(btn)){
+        btn.disabled=false;
+        btn.textContent='↻ ACTUALIZAR';
+      }
+    };
+
+    async function refreshTurnsScreen(){
+      const btn=q('refreshTurnsBtn');
+      btn.disabled=true;
+      btn.textContent='ACTUALIZANDO…';
+      await loadEvents();
+      await loadTurnsPanel();
+      btn.disabled=false;
+      btn.textContent='↻ ACTUALIZAR';
+    }
+
+    window.openTurns=async(id)=>{
+      currentTurnsEventId=id;
+      showTab('turns');
+      await loadTurnsPanel();
+      if(turnsRefreshTimer) clearInterval(turnsRefreshTimer);
+      turnsRefreshTimer=setInterval(loadTurnsPanel,5000);
+    };
+
+    async function loadTurnsPanel(){
+      if(!currentTurnsEventId)return;
+      const event=cachedEvents.find(e=>e.id===currentTurnsEventId);
+      if(event){
+        q('turnsEventName').textContent=event.name;
+        q('turnsEventMeta').textContent=eventSpan(event.starts_at,event.ends_at)+(event.location_name?' · '+event.location_name:'');
+        const thumb=q('turnsEventThumb');
+        if(event.image_url && thumb.dataset.failedUrl!==event.image_url){
+          if(thumb.getAttribute('src')!==event.image_url){
+            thumb.classList.add('hidden');
+            thumb.onload=()=>thumb.classList.remove('hidden');
+            thumb.onerror=()=>{
+              thumb.dataset.failedUrl=event.image_url;
+              thumb.classList.add('hidden');
+              thumb.removeAttribute('src');
+            };
+            thumb.src=event.image_url;
+          }
+        }else{
+          thumb.removeAttribute('src');
+          thumb.classList.add('hidden');
+        }
+        const open=event.queue_status==='open';
+        const status=q('turnsQueueStatus');
+        status.textContent=open?'LISTA DE ESPERA ABIERTA':'LISTA DE ESPERA CERRADA';
+        status.className='pill '+(open?'pill-open':'pill-closed');
+        const queueBtn=q('turnsQueueBtn');
+        queueBtn.textContent=open?'CERRAR LISTA':'ABRIR LISTA';
+        queueBtn.className='btn '+(open?'btn-danger':'btn-ok');
+        queueBtn.onclick=async()=>{
+          queueBtn.disabled=true;
+          await toggleQueue(event.id,!open);
+          currentTurnsEventId=event.id;
+          await loadTurnsPanel();
+          queueBtn.disabled=false;
+        };
+      }
+
+      const { data,error }=await db
+        .from('turns')
+        .select('id,event_id,service_id,number,code,status,created_at,updated_at,services(name,duration_minutes,price_cents,included_with_entry)')
+        .eq('event_id',currentTurnsEventId)
+        .order('number',{ascending:true});
+
+      const box=q('turnsList');
+      if(error){
+        box.innerHTML='<div class="note">'+error.message+'</div>';
+        return;
+      }
+
+      currentTurns=data||[];
+      const waiting=currentTurns.filter(t=>['issued','called','in_service'].includes(t.status));
+      const done=currentTurns.filter(t=>t.status==='done');
+      const lastDone=[...done].sort((x,y)=>new Date(y.updated_at)-new Date(x.updated_at))[0]||null;
+
+      q('waitingCount').textContent=waiting.length;
+      q('doneCount').textContent=done.length;
+      q('turnsLastUpdated').textContent='Actualizado '+new Intl.DateTimeFormat('es-ES',{hour:'2-digit',minute:'2-digit',second:'2-digit'}).format(new Date());
+
+      const next=waiting[0]||null;
+      q('nextTurnBig').textContent=next?turnShort(next.code):'—';
+      if(next){
+        const svc=next.services;
+        const svcParts=[];
+        if(svc?.name) svcParts.push(svc.name);
+        if(!svc?.included_with_entry && svc?.duration_minutes) svcParts.push(svc.duration_minutes+' min');
+        q('nextTurnSearch').innerHTML=
+          (svcParts.length?'<strong>'+svcParts.join(' · ')+'</strong><br>':'')+
+          'Buscar en WhatsApp: '+next.code;
+      }else{
+        q('nextTurnSearch').textContent='No quedan turnos pendientes.';
+      }
+
+      const copyBtn=q('copyNextCodeBtn');
+      const attendBtn=q('attendNextBtn');
+      const undoBtn=q('undoLastBtn');
+
+      copyBtn.classList.toggle('hidden',!next);
+      attendBtn.classList.toggle('hidden',!next);
+      undoBtn.classList.toggle('hidden',!lastDone);
+
+      copyBtn.onclick=next?async()=>{
+        const ok=await copyText(next.code);
+        copyBtn.textContent=ok?'COPIADO':'NO SE PUDO COPIAR';
+        setTimeout(()=>copyBtn.textContent='COPIAR CÓDIGO',1200);
+      }:null;
+
+      attendBtn.onclick=next?async()=>{
+        attendBtn.disabled=true;
+        attendBtn.textContent='MARCANDO…';
+        await setTurnAttended(next.id,true);
+        attendBtn.disabled=false;
+        attendBtn.textContent='MARCAR COMO ATENDIDO';
+      }:null;
+
+      undoBtn.onclick=lastDone?async()=>{
+        undoBtn.disabled=true;
+        await setTurnAttended(lastDone.id,false);
+        undoBtn.disabled=false;
+      }:null;
+
+      if(!currentTurns.length){
+        box.innerHTML='<div class="note">Todavía no hay turnos emitidos para este evento.</div>';
+        return;
+      }
+
+      box.innerHTML=currentTurns.map(t=>{
+        const attended=t.status==='done';
+        return `
+          <div class="list-item turn-row ${attended?'turn-done':''}">
+            <div class="topbar" style="margin:0">
+              <div>
+                <strong class="turn-row-number">${turnShort(t.code)}</strong>
+                <div class="meta">${t.code}${t.services?.name?' · '+t.services.name:''}${t.services?.duration_minutes?' · '+t.services.duration_minutes+' min':''}</div>
+              </div>
+              <span class="turn-status ${attended?'is-done':'is-waiting'}">${turnStatusLabel(t.status)}</span>
+            </div>
+          </div>`;
+      }).join('');
+    }
+
+    async function setTurnAttended(id,attended){
+      const { error }=await db.rpc('set_turn_attended',{
+        p_turn_id:id,
+        p_attended:attended
+      });
+      if(error){
+        alert(error.message);
+        return;
+      }
+      await loadTurnsPanel();
+      await loadEvents();
+    };
+
+    q('eventForm').addEventListener('submit',async e=>{
+      e.preventDefault();
+      q('eventMsg').textContent='Guardando…';
+      const date=q('evDate').value;
+      const payload={
+        name:q('evName').value.trim(),
+        event_code:eventCode(date),
+        description:q('evDescription').value.trim()||null,
+        starts_at:localDT(date,q('evStart').value),
+        ends_at:endDT(date,q('evStart').value,q('evEnd').value),
+        location_name:q('evLocation').value.trim()||null,
+        location_address:q('evAddress').value.trim()||null,
+        maps_url:q('evMaps').value.trim()||null,
+        official_url:q('evOfficial').value.trim()||null,
+        image_url:duplicateSourceEventId ? (cachedEvents.find(x=>x.id===duplicateSourceEventId)?.image_url||null) : null,
+        status:'published',
+        queue_status:'closed',
+        show_upcoming:q('evUpcoming').value==='true',
+        max_turns:q('evMax').value?Number(q('evMax').value):null,
+        created_by:session.user.id
+      };
+      const { data:event, error } = await db.from('events').insert(payload).select().single();
+      if(error){q('eventMsg').textContent=error.message;return;}
+      let serviceRows=[];
+      if(duplicateSourceEventId){
+        const source=cachedEvents.find(e=>e.id===duplicateSourceEventId);
+        serviceRows=(source?.services||[])
+          .filter(s=>s.active)
+          .sort((x,y)=>(x.sort_order||10)-(y.sort_order||10))
+          .map((svc,i)=>({
+            event_id:event.id,
+            template_id:svc.template_id||null,
+            customized:!!svc.customized,
+            name:svc.name,
+            description:svc.description||null,
+            duration_minutes:svc.included_with_entry?null:svc.duration_minutes,
+            price_cents:svc.included_with_entry?null:svc.price_cents,
+            currency:svc.currency||'EUR',
+            included_with_entry:!!svc.included_with_entry,
+            whatsapp_extra:svc.whatsapp_extra||null,
+            sort_order:(i+1)*10,
+            active:true
+          }));
+      }else{
+        const selectedTemplateIds=[...document.querySelectorAll('input[name="newServiceTemplate"]:checked')].map(x=>x.value);
+        const selectedTemplates=cachedServiceTemplates.filter(t=>selectedTemplateIds.includes(t.id));
+        serviceRows=selectedTemplates.map((t,i)=>({
+          event_id:event.id,
+          template_id:t.id,
+          customized:false,
+          name:t.name,
+          description:t.description||null,
+          duration_minutes:t.included_with_entry?null:t.duration_minutes,
+          price_cents:t.included_with_entry?null:t.price_cents,
+          currency:t.currency||'EUR',
+          included_with_entry:!!t.included_with_entry,
+          whatsapp_extra:t.whatsapp_extra||null,
+          sort_order:(i+1)*10,
+          active:true
+        }));
+      }
+
+      if(serviceRows.length){
+        const { error:svcErr }=await db.from('services').insert(serviceRows);
+        if(svcErr){q('eventMsg').textContent='Evento creado, pero fallaron los servicios: '+svcErr.message;return;}
+      }
+
+      const imageFile=q('evImage').files?.[0]||null;
+      if(imageFile){
+        try{
+          const imageUrl=await uploadEventImage(imageFile,event.id);
+          const { error:imageUpdateError }=await db.from('events').update({image_url:imageUrl}).eq('id',event.id);
+          if(imageUpdateError)throw imageUpdateError;
+        }catch(err){
+          q('eventMsg').textContent='Evento creado, pero no se pudo guardar la imagen: '+err.message;
+          return;
+        }
+      }
+
+      q('eventMsg').textContent='Evento creado.';
+      duplicateSourceEventId=null;
+      e.target.reset();
+      q('newEventTitle').textContent='Nuevo evento';
+      q('duplicateEventNote').classList.add('hidden');
+      renderNewEventServiceChoices();
+      showTab('events');
+    });
+
+    q('editEventForm').addEventListener('submit',async e=>{
+      e.preventDefault();
+      q('editMsg').textContent='Guardando…';
+      const id=q('editId').value;
+      const date=q('editDate').value;
+      const eventPayload={
+        name:q('editName').value.trim(),
+        event_code:eventCode(date),
+        description:q('editDescription').value.trim()||null,
+        starts_at:localDT(date,q('editStart').value),
+        ends_at:endDT(date,q('editStart').value,q('editEnd').value),
+        location_name:q('editLocation').value.trim()||null,
+        location_address:q('editAddress').value.trim()||null,
+        maps_url:q('editMaps').value.trim()||null,
+        official_url:q('editOfficial').value.trim()||null,
+        show_upcoming:q('editUpcoming').value==='true',
+        max_turns:q('editMax').value?Number(q('editMax').value):null
+      };
+      const editImageFile=q('editImage').files?.[0]||null;
+      if(editImageFile){
+        try{
+          eventPayload.image_url=await uploadEventImage(editImageFile,id);
+        }catch(err){
+          q('editMsg').textContent='No se pudo guardar la imagen: '+err.message;
+          return;
+        }
+      }
+
+      const { error }=await db.from('events').update(eventPayload).eq('id',id);
+      if(error){q('editMsg').textContent=error.message;return;}
+
+      q('editMsg').textContent='Cambios guardados.';
+      await loadEvents();
+      currentEditEventId=id;
+      renderEditEventServices();
+      showTab('events');
+    });
+
+    function templateLabel(t){
+      const parts=[];
+      if(t.included_with_entry) parts.push('Incluido con la entrada');
+      if(!t.included_with_entry && t.duration_minutes) parts.push(t.duration_minutes+' min');
+      if(!t.included_with_entry && t.price_cents!=null) parts.push((t.price_cents/100).toFixed(0)+' €');
+      return t.name+(parts.length?' · '+parts.join(' · '):'');
+    }
+
+    function renderNewEventServiceChoices(){
+      const box=q('newEventServiceChoices');
+      if(!box)return;
+
+      if(duplicateSourceEventId){
+        const source=cachedEvents.find(e=>e.id===duplicateSourceEventId);
+        const services=(source?.services||[]).filter(s=>s.active).sort((x,y)=>(x.sort_order||10)-(y.sort_order||10));
+        box.innerHTML=services.length
+          ? '<div class="note" style="margin-bottom:6px">Se copiarán estos servicios en este orden:</div>'+
+            services.map((svc,i)=>`
+              <div class="service-choice duplicate-service-preview">
+                <span class="service-order-number">${i+1}</span>
+                <span>
+                  <strong>${svc.name}</strong>
+                  <small>${serviceLabel(svc).replace(svc.name+' · ','').replace(svc.name,'') || 'Sin precio ni duración'}${svc.customized?' · Personalizado':''}</small>
+                </span>
+              </div>`).join('')
+          : '<div class="note">El evento original no tiene servicios activos.</div>';
+        return;
+      }
+
+      const active=cachedServiceTemplates.filter(t=>t.active);
+      if(!active.length){
+        box.innerHTML='<div class="note">No hay servicios activos. Crealos desde la pestaña Servicios.</div>';
+        return;
+      }
+      box.innerHTML=active.map(t=>`
+        <label class="service-choice">
+          <input type="checkbox" name="newServiceTemplate" value="${t.id}">
+          <span><strong>${t.name}</strong><small>${templateLabel(t).replace(t.name,'').replace(/^ · /,'')}</small></span>
+        </label>`).join('');
+    }
+
+    function renderServiceTemplates(){
+      const box=q('serviceTemplatesList');
+      if(!box)return;
+      if(!cachedServiceTemplates.length){
+        box.innerHTML='<div class="note">Todavía no hay servicios en el catálogo.</div>';
+        return;
+      }
+      box.innerHTML=cachedServiceTemplates.map(t=>`
+        <div class="list-item ${t.active?'':'turn-done'}">
+          <div class="topbar" style="margin:0">
+            <div>
+              <strong>${t.name}</strong>
+              <div class="meta">${templateLabel(t).replace(t.name+' · ','').replace(t.name,'') || 'Sin precio ni duración'}</div>
+              ${t.description?'<div class="small">'+t.description+'</div>':''}
+              ${t.whatsapp_extra?'<div class="small">WhatsApp: '+t.whatsapp_extra+'</div>':''}
+            </div>
+            <div class="actions">
+              <span class="pill ${t.active?'pill-open':'pill-closed'}">${t.active?'ACTIVO':'INACTIVO'}</span>
+              <button class="btn btn-secondary" type="button" onclick="editServiceTemplate('${t.id}')">EDITAR</button>
+            </div>
+          </div>
+        </div>`).join('');
+    }
+
+    function renderAddEventServiceSelect(){
+      const select=q('addEventServiceSelect');
+      if(!select || !currentEditEventId)return;
+      const event=cachedEvents.find(e=>e.id===currentEditEventId);
+      const activeTemplateIds=new Set((event?.services||[]).filter(s=>s.active && s.template_id).map(s=>s.template_id));
+      const available=cachedServiceTemplates.filter(t=>t.active && !activeTemplateIds.has(t.id));
+      select.innerHTML='<option value="">Seleccionar…</option>'+available.map(t=>`<option value="${t.id}">${templateLabel(t)}</option>`).join('');
+      q('addEventServiceBtn').disabled=!available.length;
+    }
+
+    function renderEditEventServices(){
+      if(!currentEditEventId)return;
+      const event=cachedEvents.find(e=>e.id===currentEditEventId);
+      const box=q('editEventServicesList');
+      if(!event || !box)return;
+      const services=(event.services||[]).filter(s=>s.active).sort((x,y)=>(x.sort_order||10)-(y.sort_order||10));
+      if(!services.length){
+        box.innerHTML='<div class="note">Este evento todavía no tiene servicios.</div>';
+      }else{
+        box.innerHTML=services.map((s,i)=>`
+          <div class="list-item event-service-row">
+            <div class="event-service-order">
+              <span class="service-order-number">${i+1}</span>
+              <div class="service-order-buttons">
+                <button class="btn btn-quiet" type="button" onclick="moveEventService('${s.id}',-1)" ${i===0?'disabled':''} aria-label="Subir servicio">↑</button>
+                <button class="btn btn-quiet" type="button" onclick="moveEventService('${s.id}',1)" ${i===services.length-1?'disabled':''} aria-label="Bajar servicio">↓</button>
+              </div>
+            </div>
+            <div class="event-service-content">
+              <div>
+                <strong>${s.name}</strong>
+                <div class="meta">${serviceLabel(s).replace(s.name+' · ','').replace(s.name,'') || 'Sin precio ni duración'}</div>
+                ${s.customized?'<span class="pill pill-open" style="margin-top:6px">PERSONALIZADO</span>':''}
+              </div>
+              <div class="actions" style="margin-top:9px">
+                <button class="btn btn-secondary" type="button" onclick="customizeEventService('${s.id}')">PERSONALIZAR</button>
+                ${s.template_id && s.customized?'<button class="btn btn-quiet" type="button" onclick="restoreEventService(\''+s.id+'\')">RESTAURAR ORIGINAL</button>':''}
+                <button class="btn btn-danger" type="button" onclick="removeEventService('${s.id}')">QUITAR</button>
+              </div>
+            </div>
+          </div>`).join('');
+      }
+      renderAddEventServiceSelect();
+    }
+
+    window.moveEventService=async(id,delta)=>{
+      const event=cachedEvents.find(e=>e.id===currentEditEventId);
+      const services=(event?.services||[]).filter(s=>s.active).sort((x,y)=>(x.sort_order||10)-(y.sort_order||10));
+      const index=services.findIndex(s=>s.id===id);
+      const target=index+delta;
+      if(index<0 || target<0 || target>=services.length)return;
+      [services[index],services[target]]=[services[target],services[index]];
+
+      for(let i=0;i<services.length;i++){
+        const { error }=await db.from('services').update({
+          sort_order:(i+1)*10,
+          updated_at:new Date().toISOString()
+        }).eq('id',services[i].id);
+        if(error){alert(error.message);return;}
+      }
+      await loadEvents();
+      currentEditEventId=event.id;
+      renderEditEventServices();
+    };
+
+    async function loadServiceTemplates(){
+      const { data,error }=await db.from('service_templates').select('*').order('sort_order').order('name');
+      if(error){
+        if(q('serviceTemplatesList')) q('serviceTemplatesList').innerHTML='<div class="note">'+error.message+'</div>';
+        return;
+      }
+      cachedServiceTemplates=data||[];
+      renderServiceTemplates();
+      renderNewEventServiceChoices();
+      renderAddEventServiceSelect();
+    }
+
+    function resetServiceTemplateForm(){
+      q('serviceTemplateForm').reset();
+      q('serviceTemplateId').value='';
+      q('serviceTemplateActive').checked=true;
+      q('serviceTemplateFormTitle').textContent='Nuevo servicio';
+      q('serviceTemplateMsg').textContent='';
+      syncPaidFields('serviceTemplateIncluded','serviceTemplatePaidFields');
+    }
+
+    q('newServiceTemplateBtn').addEventListener('click',()=>{
+      resetServiceTemplateForm();
+      q('serviceTemplateFormBox').classList.remove('hidden');
+      q('serviceTemplateFormBox').scrollIntoView({behavior:'smooth',block:'center'});
+    });
+    q('cancelServiceTemplateBtn').addEventListener('click',()=>q('serviceTemplateFormBox').classList.add('hidden'));
+
+    window.editServiceTemplate=id=>{
+      const t=cachedServiceTemplates.find(x=>x.id===id);
+      if(!t)return;
+      q('serviceTemplateId').value=t.id;
+      q('serviceTemplateName').value=t.name||'';
+      q('serviceTemplateIncluded').checked=!!t.included_with_entry;
+      q('serviceTemplateDuration').value=t.duration_minutes||'';
+      q('serviceTemplatePrice').value=t.price_cents!=null?t.price_cents/100:'';
+      q('serviceTemplateDescription').value=t.description||'';
+      q('serviceTemplateWhatsapp').value=t.whatsapp_extra||'';
+      q('serviceTemplateActive').checked=!!t.active;
+      q('serviceTemplateFormTitle').textContent='Editar servicio';
+      q('serviceTemplateMsg').textContent='';
+      syncPaidFields('serviceTemplateIncluded','serviceTemplatePaidFields');
+      q('serviceTemplateFormBox').classList.remove('hidden');
+      q('serviceTemplateFormBox').scrollIntoView({behavior:'smooth',block:'center'});
+    };
+
+    q('serviceTemplateForm').addEventListener('submit',async e=>{
+      e.preventDefault();
+      q('serviceTemplateMsg').textContent='Guardando…';
+      const included=q('serviceTemplateIncluded').checked;
+      const payload={
+        name:q('serviceTemplateName').value.trim(),
+        description:q('serviceTemplateDescription').value.trim()||null,
+        duration_minutes:included?null:(q('serviceTemplateDuration').value?Number(q('serviceTemplateDuration').value):null),
+        price_cents:included?null:(q('serviceTemplatePrice').value?Math.round(Number(q('serviceTemplatePrice').value)*100):null),
+        included_with_entry:included,
+        whatsapp_extra:q('serviceTemplateWhatsapp').value.trim()||null,
+        active:q('serviceTemplateActive').checked,
+        updated_at:new Date().toISOString()
+      };
+      const id=q('serviceTemplateId').value;
+      const result=id
+        ? await db.from('service_templates').update(payload).eq('id',id)
+        : await db.from('service_templates').insert({...payload,sort_order:(cachedServiceTemplates.length+1)*10});
+      if(result.error){q('serviceTemplateMsg').textContent=result.error.message;return;}
+      q('serviceTemplateFormBox').classList.add('hidden');
+      await loadServiceTemplates();
+    });
+
+    q('addEventServiceBtn').addEventListener('click',async()=>{
+      if(!currentEditEventId)return;
+      const templateId=q('addEventServiceSelect').value;
+      const t=cachedServiceTemplates.find(x=>x.id===templateId);
+      if(!t)return;
+      const event=cachedEvents.find(e=>e.id===currentEditEventId);
+      const existing=(event?.services||[]).find(s=>s.template_id===templateId);
+      const payload={
+        event_id:currentEditEventId,
+        template_id:t.id,
+        customized:false,
+        name:t.name,
+        description:t.description||null,
+        duration_minutes:t.included_with_entry?null:t.duration_minutes,
+        price_cents:t.included_with_entry?null:t.price_cents,
+        currency:t.currency||'EUR',
+        included_with_entry:!!t.included_with_entry,
+        whatsapp_extra:t.whatsapp_extra||null,
+        active:true,
+        updated_at:new Date().toISOString()
+      };
+      const result=existing
+        ? await db.from('services').update(payload).eq('id',existing.id)
+        : await db.from('services').insert({...payload,sort_order:((event?.services||[]).length+1)*10});
+      if(result.error){alert(result.error.message);return;}
+      await loadEvents();
+      currentEditEventId=event.id;
+      renderEditEventServices();
+    });
+
+    window.customizeEventService=id=>{
+      const event=cachedEvents.find(e=>e.id===currentEditEventId);
+      const s=(event?.services||[]).find(x=>x.id===id);
+      if(!s)return;
+      q('eventSvcId').value=s.id;
+      q('eventSvcName').value=s.name||'';
+      q('eventSvcIncluded').checked=!!s.included_with_entry;
+      q('eventSvcDuration').value=s.duration_minutes||'';
+      q('eventSvcPrice').value=s.price_cents!=null?s.price_cents/100:'';
+      q('eventSvcDescription').value=s.description||'';
+      q('eventSvcWhatsapp').value=s.whatsapp_extra||'';
+      q('eventSvcMsg').textContent='';
+      syncPaidFields('eventSvcIncluded','eventSvcPaidFields');
+      q('editEventServiceBox').classList.remove('hidden');
+      q('editEventServiceBox').scrollIntoView({behavior:'smooth',block:'center'});
+    };
+
+    q('cancelEventServiceEditBtn').addEventListener('click',()=>q('editEventServiceBox').classList.add('hidden'));
+
+    q('eventServiceForm').addEventListener('submit',async e=>{
+      e.preventDefault();
+      const id=q('eventSvcId').value;
+      if(!id)return;
+      q('eventSvcMsg').textContent='Guardando…';
+      const included=q('eventSvcIncluded').checked;
+      const { error }=await db.from('services').update({
+        name:q('eventSvcName').value.trim(),
+        description:q('eventSvcDescription').value.trim()||null,
+        duration_minutes:included?null:(q('eventSvcDuration').value?Number(q('eventSvcDuration').value):null),
+        price_cents:included?null:(q('eventSvcPrice').value?Math.round(Number(q('eventSvcPrice').value)*100):null),
+        included_with_entry:included,
+        whatsapp_extra:q('eventSvcWhatsapp').value.trim()||null,
+        customized:true,
+        updated_at:new Date().toISOString()
+      }).eq('id',id);
+      if(error){q('eventSvcMsg').textContent=error.message;return;}
+      q('editEventServiceBox').classList.add('hidden');
+      await loadEvents();
+      renderEditEventServices();
+    });
+
+    window.restoreEventService=async id=>{
+      const event=cachedEvents.find(e=>e.id===currentEditEventId);
+      const s=(event?.services||[]).find(x=>x.id===id);
+      const t=cachedServiceTemplates.find(x=>x.id===s?.template_id);
+      if(!s || !t)return;
+      const { error }=await db.from('services').update({
+        name:t.name,
+        description:t.description||null,
+        duration_minutes:t.included_with_entry?null:t.duration_minutes,
+        price_cents:t.included_with_entry?null:t.price_cents,
+        currency:t.currency||'EUR',
+        included_with_entry:!!t.included_with_entry,
+        whatsapp_extra:t.whatsapp_extra||null,
+        customized:false,
+        active:true,
+        updated_at:new Date().toISOString()
+      }).eq('id',id);
+      if(error){alert(error.message);return;}
+      await loadEvents();
+      renderEditEventServices();
+    };
+
+    window.removeEventService=async id=>{
+      if(!confirm('¿Quitar este servicio del evento? El catálogo general no se modifica.'))return;
+      const { error }=await db.from('services').update({active:false,updated_at:new Date().toISOString()}).eq('id',id);
+      if(error){alert(error.message);return;}
+      await loadEvents();
+      renderEditEventServices();
+    };
+
+    async function loadTrash(){
+      const box=q('trashList');
+      const { data,error }=await db
+        .from('events')
+        .select('*, turns(id)')
+        .not('deleted_at','is',null)
+        .order('deleted_at',{ascending:false});
+
+      if(error){
+        box.innerHTML='<div class="note">'+error.message+'</div>';
+        return;
+      }
+
+      const items=data||[];
+      cachedTrash=items;
+      if(!items.length){
+        box.innerHTML='<div class="note">La papelera está vacía.</div>';
+        return;
+      }
+
+      box.innerHTML=items.map(e=>`
+        <div class="list-item">
+          <div class="topbar" style="margin:0">
+            <div>
+              <strong>${e.name}</strong>
+              <div class="meta">${fmt(e.starts_at)}${e.location_name?' · '+e.location_name:''}</div>
+              <div class="small">Código ${e.event_code} · ${(e.turns||[]).length} turno(s)</div>
+            </div>
+            <div class="actions">
+              <button class="btn btn-secondary" onclick="restoreEvent('${e.id}')">RESTAURAR</button>
+              <button class="btn btn-danger" onclick="permanentDeleteEvent('${e.id}')">ELIMINAR DEFINITIVAMENTE</button>
+            </div>
+          </div>
+        </div>`).join('');
+    }
+
+    window.restoreEvent=async(id)=>{
+      const { error }=await db.rpc('restore_event',{p_event_id:id});
+      if(error){
+        alert(error.message);
+        return;
+      }
+      await loadTrash();
+    };
+
+    window.permanentDeleteEvent=async(id)=>{
+      const e=cachedTrash.find(x=>x.id===id);
+      const name=e?.name||'este evento';
+      const first=confirm(
+        'Vas a eliminar definitivamente "' + name + '".\n\n' +
+        'Esto también borra todos sus turnos y servicios. No se puede deshacer. ¿Continuar?'
+      );
+      if(!first)return;
+
+      const typed=prompt('Para confirmar, escribí ELIMINAR');
+      if(typed===null)return;
+      if(typed.trim().toUpperCase()!=='ELIMINAR'){
+        alert('No se eliminó. La confirmación no coincide.');
+        return;
+      }
+
+      const { error }=await db.rpc('permanently_delete_event',{
+        p_event_id:id,
+        p_confirmation:'ELIMINAR'
+      });
+      if(error){
+        alert(error.message);
+        return;
+      }
+      await loadTrash();
+    };
+
+    async function loadSettings(){
+      const { data }=await db.from('app_settings').select('*').eq('id',1).maybeSingle();
+      if(!data)return;
+      q('setBrand').value=data.brand_name||'';
+      q('setSubtitle').value=data.public_subtitle||'';
+      q('setWhatsapp').value=data.whatsapp_number||'';
+      q('setInstagram').value=data.instagram_url||'';
+      q('setWebsite').value=data.website_url||'';
+      q('setReview').value=data.google_review_url||'';
+      q('setWhatsappInstruction').value=data.whatsapp_instruction||'ÚLTIMO PASO: enviá el mensaje para confirmar tu turno.';
+      q('setWaitingMessage').value=data.waiting_message||'Estate atent@ a tu móvil. Te avisaré cuando sea tu turno.';
+      q('setCompletedTitle').value=data.completed_title||'Gracias por compartir este encuentro';
+      q('setCompletedMessage').value=data.completed_message||'Espero que esta lectura te acompañe y te aporte un poquito de luz ✦';
+      q('setReviewPrompt').value=data.review_prompt||'Si te gustó la experiencia, podés dejar una reseña.';
+      q('setClosedMessage').value=data.closed_message||'Gracias por compartir este encuentro ✦ Podés seguir a Soy Amor Universal 111 o conocer más en la web.';
+    }
+    q('settingsForm').addEventListener('submit',async e=>{
+      e.preventDefault(); q('settingsMsg').textContent='Guardando…';
+      const { error }=await db.from('app_settings').update({
+        brand_name:q('setBrand').value.trim(),
+        public_subtitle:q('setSubtitle').value.trim()||null,
+        whatsapp_number:q('setWhatsapp').value.trim(),
+        instagram_url:q('setInstagram').value.trim()||null,
+        website_url:q('setWebsite').value.trim()||null,
+        google_review_url:q('setReview').value.trim()||null,
+        whatsapp_instruction:q('setWhatsappInstruction').value.trim()||null,
+        waiting_message:q('setWaitingMessage').value.trim()||null,
+        completed_title:q('setCompletedTitle').value.trim()||null,
+        completed_message:q('setCompletedMessage').value.trim()||null,
+        review_prompt:q('setReviewPrompt').value.trim()||null,
+        closed_message:q('setClosedMessage').value.trim()||null
+      }).eq('id',1);
+      q('settingsMsg').textContent=error?error.message:'Guardado.';
+    });
+
+    async function loadUsers(){
+      const { data,error }=await db.from('profiles').select('*').order('created_at');
+      const box=q('usersList');
+      if(error){box.innerHTML='<div class="note">'+error.message+'</div>';return;}
+      cachedUsers=data||[];
+      box.innerHTML=cachedUsers.map(u=>`
+        <div class="list-item">
+          <div class="topbar" style="margin:0">
+            <div>
+              <strong>${u.display_name||'Usuario'}</strong>
+              <div class="meta">${u.email||''}</div>
+              <div class="small">${u.role} · ${u.active?'activo':'inactivo'}</div>
+            </div>
+            <button class="btn btn-secondary" onclick="editUser('${u.user_id}')">EDITAR</button>
+          </div>
+        </div>`).join('')||'<div class="note">No hay usuarios.</div>';
+    }
+
+    window.editUser=id=>{
+      const u=cachedUsers.find(x=>x.user_id===id);
+      if(!u)return;
+      q('editUsrId').value=u.user_id;
+      q('editUsrName').value=u.display_name||'';
+      q('editUsrEmail').value=u.email||'';
+      q('editUsrPassword').value='';
+      q('editUsrRole').value=u.role==='admin'?'admin':'staff';
+      q('editUsrActive').checked=!!u.active;
+      q('editUserMsg').textContent='';
+      q('editUserBox').classList.remove('hidden');
+      q('editUserBox').scrollIntoView({behavior:'smooth',block:'center'});
+    };
+
+    q('editUserForm').addEventListener('submit',async e=>{
+      e.preventDefault();
+      q('editUserMsg').textContent='Guardando…';
+      const { data:{session:current} }=await db.auth.getSession();
+      const { data,error }=await db.functions.invoke('admin-update-user',{
+        body:{
+          user_id:q('editUsrId').value,
+          display_name:q('editUsrName').value.trim(),
+          email:q('editUsrEmail').value.trim(),
+          password:q('editUsrPassword').value,
+          role:q('editUsrRole').value,
+          active:q('editUsrActive').checked
+        },
+        headers:{Authorization:'Bearer '+current.access_token}
+      });
+      if(error){q('editUserMsg').textContent=error.message;return;}
+      if(data?.error){q('editUserMsg').textContent=data.error;return;}
+      q('editUserMsg').textContent=data?.activation_url?'Cambios guardados. Enlace privado: '+data.activation_url:'Cambios guardados.';
+      q('editUsrPassword').value='';
+      await loadUsers();
+    });
+
+    q('userForm').addEventListener('submit',async e=>{
+      e.preventDefault(); q('userMsg').textContent='Creando…';
+      const { data:{session:current} }=await db.auth.getSession();
+      const { data,error }=await db.functions.invoke('admin-create-user',{
+        body:{
+          email:q('usrEmail').value.trim(),
+          password:q('usrPassword').value,
+          display_name:q('usrName').value.trim(),
+          role:q('usrRole').value
+        },
+        headers:{Authorization:'Bearer '+current.access_token}
+      });
+      if(error){q('userMsg').textContent=error.message;return;}
+      if(data?.error){q('userMsg').textContent=data.error;return;}
+      q('userMsg').textContent=data?.activation_url?'Usuario creado. Enviá este enlace privado para que configure su contraseña: '+data.activation_url:'Usuario creado.';
+      e.target.reset();
+      await loadUsers();
+    });
+
+    ensureAuth().catch(()=>{
+      showLoginCard('No pudimos conectar con el panel.');
+      showServiceHelp('Comprobá la conexión con Cloudflare. Si el proyecto tiene una incidencia, abrilo para comprobarlo.');
+    });
+    checkServiceHealth();
+  </script>
+<div id="cfActivation" style="display:none;position:fixed;inset:0;z-index:9999;background:#f8f4ed;align-items:center;justify-content:center;padding:16px">
+<div style="width:min(100%,460px);background:white;padding:24px;border-radius:16px;box-shadow:0 12px 48px #0002">
+<h1 style="font-size:24px">Activar acceso a Soy Amor</h1>
+<p>Creá tu contraseña para entrar al panel de eventos. Usá al menos 12 caracteres.</p>
+<form id="cfActivationForm"><label for="cfPassword">Nueva contraseña</label><input id="cfPassword" type="password" minlength="12" required autocomplete="new-password" style="display:block;width:100%;padding:12px;margin:12px 0;border:1px solid #aaa;border-radius:7px">
+<button class="btn btn-primary" type="submit">ACTIVAR MI CUENTA</button></form>
+<p id="cfActivationMsg" role="status"></p></div></div>
+<script>
+(function(){const token=new URLSearchParams(location.search).get('activar');if(!token)return;
+const box=document.getElementById('cfActivation');box.style.display='flex';
+document.getElementById('cfActivationForm').onsubmit=async e=>{e.preventDefault();const p=document.getElementById('cfPassword').value,msg=document.getElementById('cfActivationMsg');
+msg.textContent='Activando…';try{const r=await fetch('/api/auth/activate',{method:'POST',credentials:'same-origin',headers:{'content-type':'application/json'},body:JSON.stringify({token,password:p})}),j=await r.json();
+if(!r.ok)throw Error(j.error||'No fue posible activar el acceso');
+history.replaceState({},'',location.pathname);box.innerHTML='<div style="background:white;padding:30px;border-radius:16px"><h2>¡Cuenta activada!</h2><p>Ya podés iniciar sesión con tu correo y la contraseña que acabás de crear.</p><a class="btn btn-primary" href="/admin/">INGRESAR AL PANEL</a></div>';
+}catch(err){msg.textContent=err.message}}})();
+</script>
+</body>
+</html>
