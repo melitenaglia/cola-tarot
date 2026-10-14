@@ -336,7 +336,8 @@ export async function handleAPI(request,env,url) {
    const b=await getBody(request);
    if(path==='/api/admin/import-images'){
     // Importa solo carteles públicos del proyecto Supabase original. Nunca solicita URLs arbitrarias.
-    const originals=(await db.prepare("SELECT id,image_url FROM events WHERE image_url LIKE 'https://yczzfhfyrkmgqsblmeze.supabase.co/storage/v1/object/public/event-images/%' ORDER BY id LIMIT 20").all()).results;
+    const prefix='https://yczzfhfyrkmgqsblmeze.supabase.co/storage/v1/object/public/event-images/';
+    const originals=(await db.prepare('SELECT id,image_url FROM events WHERE substr(image_url,1,?)=? ORDER BY id LIMIT 20').bind(prefix.length,prefix).all()).results;
     const copied=[],failed=[];
     for(const ev of originals){
      try{
