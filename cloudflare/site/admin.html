@@ -1687,31 +1687,23 @@
     });
 
     q('importOldImagesBtn').addEventListener('click',async()=>{
-      const button=q('importOldImagesBtn'),msg=q('importOldImagesMsg');
-      button.disabled=true;msg.textContent='Comprobando los carteles…';
-      let copied=0,failed=0;
+      const btn=q('importOldImagesBtn'),msg=q('importOldImagesMsg');
+      btn.disabled=true;
+      msg.textContent='Copiando carteles al almacenamiento de Cloudflare…';
       try{
-        const {data:events,error}=await db.from('events').select('id,image_url');
-        if(error)throw Error(error.message);
-        const originals=(events||[]).filter(e=>typeof e.image_url==='string'&&e.image_url.startsWith('https://yczzfhfyrkmgqsblmeze.supabase.co/storage/v1/object/public/event-images/'));
-        if(!originals.length){msg.textContent='Los carteles ya están en Cloudflare o no hay imágenes pendientes.';return;}
-        for(const ev of originals){
-          msg.textContent='Copiando carteles… '+(copied+failed+1)+' de '+originals.length;
-          try{
-            const response=await fetch(ev.image_url,{mode:'cors'});
-            if(!response.ok)throw Error('No se pudo descargar el cartel');
-            const b=await response.blob();
-            const file=new File([b],'cartel.png',{type:b.type||'image/png'});
-            const newUrl=await uploadEventImage(file,ev.id);
-            const {error:saveError}=await db.from('events').update({image_url:newUrl}).eq('id',ev.id);
-            if(saveError)throw Error(saveError.message);
-            copied++;
-          }catch(e){failed++;console.warn('No fue posible copiar un cartel',e);}
-        }
-        msg.textContent='Carteles copiados: '+copied+'. Pendientes: '+failed+'.'+(failed?' Podés volver a intentarlo o subir esas imágenes desde la edición del evento.':'');
+        const response=await fetch('/api/admin/import-images',{
+          method:'POST',credentials:'same-origin',
+          headers:{'content-type':'application/json'},
+          body:JSON.stringify({})
+        });
+        const info=await response.json();
+        if(!response.ok)throw Error(info.error||'Error al copiar los carteles');
+        const pending=info.failed||[];
+        msg.textContent='Carteles copiados: '+info.copied+'. Pendientes: '+pending.length+
+          (pending.length?' — Revisá los pendientes desde Editar evento y volvé a subir la imagen.':' — Ya no dependen de Supabase.');
         await loadEvents();
       }catch(e){msg.textContent='No se pudo completar la copia: '+e.message;}
-      finally{button.disabled=false;}
+      finally{btn.disabled=false;}
     });
 
     ensureAuth().catch(()=>{
