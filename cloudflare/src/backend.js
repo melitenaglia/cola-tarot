@@ -346,9 +346,9 @@ export async function handleAPI(request,env,url) {
       const response=await fetch(from.toString(),{redirect:'error',signal:AbortSignal.timeout(12000)});
       if(!response.ok)throw Error('El cartel no está disponible');
       const length=Number(response.headers.get('content-length')||0);
-      if(length>1800000)throw Error('Cartel demasiado grande: se debe volver a subir desde el panel');
+      if(length>1950000)throw Error('Cartel demasiado grande: se debe volver a subir desde el panel');
       const buf=await response.arrayBuffer();
-      if(buf.byteLength<16||buf.byteLength>1800000)throw Error('El cartel supera 1,8 MB o no contiene datos válidos');
+      if(buf.byteLength<16||buf.byteLength>1950000)throw Error('El cartel supera el límite admitido en D1 o no contiene datos válidos');
       const bytes=new Uint8Array(buf);
       const png=bytes[0]===137&&bytes[1]===80&&bytes[2]===78&&bytes[3]===71;
       const jpg=bytes[0]===255&&bytes[1]===216&&bytes[2]===255;
