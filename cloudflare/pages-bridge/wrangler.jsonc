@@ -1,0 +1,11 @@
+{
+  "name": "soy-amor-eventos-pages",
+  "compatibility_date": "2026-10-12",
+  "pages_build_output_dir": ".",
+  "services": [
+    {
+      "binding": "SOY_AMOR",
+      "service": "soy-amor-eventos"
+    }
+  ]
+}
