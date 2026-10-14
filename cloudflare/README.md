@@ -14,7 +14,7 @@
 - **Migración de usuarios:** primera entrada valida correo/contraseña contra Supabase Auth y comprueba el rol de la cuenta en Supabase antes de guardar un hash PBKDF2 en D1. El login posterior no usa Supabase. El primer acceso de Melisa se ha validado. La cuenta de Sofía está preinscrita sin contraseña, pendiente de su primer acceso.
 - **Tablas:** `schema.sql` + `migrations/0002_auth_media.sql`.
 - **Imágenes nuevas:** comprimidas automáticamente a WebP y guardadas en D1 (`media`), límite 400 KB. **R2 no está habilitado** en la cuenta actual de Cloudflare.
-- **Carteles históricos:** botón «Copiar carteles a Cloudflare» en Configuración. La copia ahora se efectúa en el Worker para evitar CORS; admite PNG, JPG y WebP de hasta 1,8 MB. Los carteles restantes se podrán reemplazar por archivos comprimidos desde la edición.
+- **Carteles históricos:** botón «Copiar carteles a Cloudflare» en Configuración. La copia ahora se efectúa en el Worker para evitar CORS; admite PNG, JPG y WebP de hasta 1,95 MB. Los carteles restantes se podrán reemplazar por archivos comprimidos desde la edición.
 - **Tests:** `tests/smoke.mjs` con `node --experimental-sqlite`; workflow de GitHub Actions para `staging` creado. No se ha confirmado aún que el workflow se haya ejecutado correctamente.
 
 ### Estado de la copia inicial de Supabase (13/10/2026)
@@ -50,7 +50,7 @@
 1. La URL de staging, el panel y el login se abrieron correctamente en el navegador de Melisa. Sigue pendiente la batería completa de pruebas reales de emisión/atención de turnos y roles.
 2. Validar el primer inicio de sesión de Sofía y sus permisos de administradora en móvil. Melisa ya entró correctamente.
 3. Ejecutar tests de regresión, dos dispositivos simultáneos, máximo de turnos, reconexión y flujo de WhatsApp.
-4. Abrir Configuración → Copiar carteles a Cloudflare, comprobar los cinco carteles y reponer los que superen 1,8 MB desde la edición del evento.
+4. Abrir Configuración → Copiar carteles a Cloudflare, comprobar los cinco carteles y reponer los que superen 1,95 MB desde la edición del evento.
 5. Hacer auditoría de interfaz móvil y del panel administrativo.
 6. Establecer copia de seguridad, sincronización final Supabase → D1 sin duplicados y una ventana sin colas abiertas; asegurar que `created_by` corresponde a las cuentas nuevas si se utiliza.
 7. Desactivar/retirar `/api/auth/migrate` cuando se haya terminado el traspaso de identidades.
