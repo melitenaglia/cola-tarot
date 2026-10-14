@@ -142,7 +142,7 @@ async function queueRpc(db,name,p,admin,request) {
   const rk=await sha('issue:'+ip+':'+id);
   const now=Date.now(), period=600000;
   const rl=await db.prepare('SELECT attempts,window_start FROM login_attempts WHERE identifier=?').bind(rk).first();
-  if(rl&&now-rl.window_start<period&&rl.attempts>=10)throw Error('Demasiados intentos. Probá más tarde.');
+  if(rl&&now-rl.window_start<period&&rl.attempts>=120)throw Error('Demasiados intentos. Probá más tarde.');
   await db.prepare('INSERT INTO login_attempts(identifier,attempts,window_start) VALUES(?,?,?) ON CONFLICT(identifier) DO UPDATE SET attempts=CASE WHEN excluded.window_start-login_attempts.window_start<? THEN login_attempts.attempts+1 ELSE 1 END,window_start=CASE WHEN excluded.window_start-login_attempts.window_start<? THEN login_attempts.window_start ELSE excluded.window_start END').bind(rk,1,now,period,period).run();
   const ev=await db.prepare('SELECT * FROM events WHERE id=? AND deleted_at IS NULL').bind(id).first();
   if(!ev||ev.status!=='published')throw Error('El evento no está disponible.');
