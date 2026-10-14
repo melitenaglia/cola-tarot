@@ -11,10 +11,10 @@
 - **Web pública:** HTML/CSS/JS originales servidos por el Worker desde `site/`.
 - **Panel administrativo:** `/admin/`, con cliente de compatibilidad `src/compat.txt`.
 - **API:** `src/backend.js`, datos y permisos en D1, sesiones HttpOnly Secure SameSite=Strict.
-- **Migración de usuarios:** primera entrada valida correo/contraseña contra Supabase Auth y comprueba el rol de la cuenta en Supabase antes de guardar un hash PBKDF2 en D1. El login posterior no usa Supabase. La importación solo funciona mientras Supabase responde y hay que probarla con las cuentas reales.
+- **Migración de usuarios:** primera entrada valida correo/contraseña contra Supabase Auth y comprueba el rol de la cuenta en Supabase antes de guardar un hash PBKDF2 en D1. El login posterior no usa Supabase. El primer acceso de Melisa se ha validado. La cuenta de Sofía está preinscrita sin contraseña, pendiente de su primer acceso.
 - **Tablas:** `schema.sql` + `migrations/0002_auth_media.sql`.
 - **Imágenes nuevas:** comprimidas automáticamente a WebP y guardadas en D1 (`media`), límite 400 KB. **R2 no está habilitado** en la cuenta actual de Cloudflare.
-- **Carteles históricos:** botón «Copiar carteles a Cloudflare» en Configuración, a ejecutar con cuenta administradora; si falla CORS, se deben subir manualmente los originales.
+- **Carteles históricos:** botón «Copiar carteles a Cloudflare» en Configuración. La copia ahora se efectúa en el Worker para evitar CORS; admite PNG, JPG y WebP de hasta 1,8 MB. Los carteles restantes se podrán reemplazar por archivos comprimidos desde la edición.
 - **Tests:** `tests/smoke.mjs` con `node --experimental-sqlite`; workflow de GitHub Actions para `staging` creado. No se ha confirmado aún que el workflow se haya ejecutado correctamente.
 
 ### Estado de la copia inicial de Supabase (13/10/2026)
@@ -22,8 +22,8 @@
 - 6 eventos, 11 servicios asociados, 5 plantillas de servicios, 1 configuración, 13 turnos históricos.
 - Más 1 evento y 1 servicio ficticio de staging; el evento ficticio está en borrador.
 - **Todas las listas de espera cerradas en staging** para evitar que se mezclen con las reales.
-- Los perfiles no se copian con contraseñas: cada persona se activa al primer acceso con credenciales válidas.
-- La copia inicial no es una sincronización continua. Antes del corte real se debe repetir la importación de los datos modificados después del 13/10/2026 (incluidos los turnos) con un procedimiento de sincronización, sin duplicar ni sobrescribir indebidamente.
+- Dos administradoras registradas: Melisa con acceso activado y Sofía pendiente de su primer inicio de sesión (no se copiaron contraseñas).
+- Los 13 tokens originales de los dispositivos de la copia de turnos fueron anonimizados exclusivamente en staging (migración `staging-anonymize-turns.sql`). El histórico de números y estados se conserva. La copia inicial no es una sincronización continua. Antes del corte real se debe repetir la importación de los datos modificados después del 13/10/2026 (incluidos los turnos) con un procedimiento de sincronización, sin duplicar ni sobrescribir indebidamente.
 
 ### Endpoints
 
@@ -47,17 +47,19 @@
 
 ## Pasos obligatorios antes de producción
 
-1. Verificar carga de la URL de staging desde un navegador real y endpoints HTTP; Cloudflare aceptó los despliegues pero el entorno de herramientas no tiene acceso externo al subdominio.
-2. Iniciar sesión por primera vez en staging con ambas cuentas (Melisa y Sofía); comprobar roles y acciones y que un segundo login ya no necesita Supabase.
+1. La URL de staging, el panel y el login se abrieron correctamente en el navegador de Melisa. Sigue pendiente la batería completa de pruebas reales de emisión/atención de turnos y roles.
+2. Validar el primer inicio de sesión de Sofía y sus permisos de administradora en móvil. Melisa ya entró correctamente.
 3. Ejecutar tests de regresión, dos dispositivos simultáneos, máximo de turnos, reconexión y flujo de WhatsApp.
-4. Copiar **todos** los carteles históricos a Cloudflare y verificar sus URL locales.
+4. Abrir Configuración → Copiar carteles a Cloudflare, comprobar los cinco carteles y reponer los que superen 1,8 MB desde la edición del evento.
 5. Hacer auditoría de interfaz móvil y del panel administrativo.
 6. Establecer copia de seguridad, sincronización final Supabase → D1 sin duplicados y una ventana sin colas abiertas; asegurar que `created_by` corresponde a las cuentas nuevas si se utiliza.
 7. Desactivar/retirar `/api/auth/migrate` cuando se haya terminado el traspaso de identidades.
-8. Desplegar una base y Worker **de producción independientes de staging**, migrar datos finales, verificar y después redirigir el dominio `eventos.soyamoruniversal111.com`. Nunca apuntar el dominio a la base de staging directamente.
+8. Desplegar una base y Worker **de producción independientes de staging**, migrar datos finales, verificar y después redirigir el dominio `eventos.soyamoruniversal111.com`. Nunca apuntar el dominio a la base de staging directamente. **BLOQUEO DNS:** en la cuenta Cloudflare solo existe la zona `aficionadxs.art`; no está `soyamoruniversal111.com`. Se debe revisar dónde se administran sus DNS, inventariar registros de Odoo/correo y pedir autorización antes de mover nameservers.
 
 ### Pendientes no bloqueantes del prototipo
 - Recuperación automática de contraseña por correo: requiere proveedor de correo transaccional; actualmente no disponible, panel muestra mensaje claro.
+- Las cinco imágenes de eventos todavía apuntan a Supabase hasta que se ejecute la importación segura.
+- El endpoint `POST /api/admin/import-images` exige rol `admin` y copia solo archivos bajo el almacenamiento público permitido del proyecto original.
 - CI/CD de despliegues: hoy los cambios de GitHub no actualizan Worker solos.
 
 ### Reglas
