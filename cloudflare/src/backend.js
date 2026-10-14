@@ -17,7 +17,7 @@ const salt=()=>hex(crypto.getRandomValues(new Uint8Array(16)));
 const random=()=>hex(crypto.getRandomValues(new Uint8Array(32)));
 async function passhash(password,s) {
  const key=await crypto.subtle.importKey('raw',new TextEncoder().encode(password),'PBKDF2',false,['deriveBits']);
- return hex(await crypto.subtle.deriveBits({name:'PBKDF2',salt:new Uint8Array(s.match(/.{2}/g).map(x=>parseInt(x,16))),iterations:120000,hash:'SHA-256'},key,256));
+ return hex(await crypto.subtle.deriveBits({name:'PBKDF2',salt:new Uint8Array(s.match(/.{2}/g).map(x=>parseInt(x,16))),iterations:100000,hash:'SHA-256'},key,256));
 }
 const normalize=(table,row)=>{
  if(!row)return row;
