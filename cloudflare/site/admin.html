@@ -282,12 +282,6 @@
       </section>
 
       <section id="tab-settings" class="tabpane hidden">
-        <div class="card" style="margin-bottom:15px">
-          <h2>Imágenes de los eventos</h2>
-          <p class="note">Son las imágenes de portada que aparecen en cada evento. Las copiaremos a Cloudflare para que sigan funcionando cuando dejemos de usar Supabase. Los archivos originales no se borran.</p>
-          <button id="importOldImagesBtn" type="button" class="btn btn-secondary">COPIAR LAS 5 IMÁGENES</button>
-          <p id="importOldImagesMsg" class="note" role="status" aria-live="polite"></p>
-        </div>
         <div class="card">
           <h2>Configuración pública</h2>
           <form id="settingsForm" class="stack">
@@ -1684,26 +1678,6 @@
       q('userMsg').textContent=data?.activation_url?'Usuario creado. Enviá este enlace privado para que configure su contraseña: '+data.activation_url:'Usuario creado.';
       e.target.reset();
       await loadUsers();
-    });
-
-    q('importOldImagesBtn').addEventListener('click',async()=>{
-      const btn=q('importOldImagesBtn'),msg=q('importOldImagesMsg');
-      btn.disabled=true;
-      msg.textContent='Copiando imágenes desde Supabase a Cloudflare…';
-      try{
-        const response=await fetch('/api/admin/import-images',{
-          method:'POST',credentials:'same-origin',
-          headers:{'content-type':'application/json'},
-          body:JSON.stringify({})
-        });
-        const info=await response.json();
-        if(!response.ok)throw Error(info.error||'Error al copiar los carteles');
-        const pending=info.failed||[];
-        msg.textContent='Imágenes copiadas: '+info.copied+'. Pendientes: '+pending.length+
-          (pending.length?' — Algunas imágenes necesitan revisión.':' — ¡Listo! Estas imágenes ya no dependen de Supabase.');
-        await loadEvents();
-      }catch(e){msg.textContent='No se pudo completar la copia: '+e.message;}
-      finally{btn.disabled=false;}
     });
 
     ensureAuth().catch(()=>{
