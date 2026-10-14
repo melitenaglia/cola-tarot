@@ -1,0 +1,30 @@
+{
+  "name": "soy-amor-eventos",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-12",
+  "workers_dev": false,
+  "observability": {
+    "enabled": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "soy-amor-eventos-production",
+      "database_id": "f8cfddc5-d37e-457b-a227-18afe69a5e84"
+    }
+  ],
+  "rules": [
+    {
+      "type": "Text",
+      "globs": [
+        "**/*.html",
+        "**/*.css",
+        "**/*.txt"
+      ],
+      "fallthrough": true
+    }
+  ],
+  "vars": {
+    "APP_ENV": "production"
+  }
+}
