@@ -334,6 +334,38 @@ export async function handleAPI(request,env,url) {
   if(path.startsWith('/api/admin/')&&method==='POST'){
    if(!admin||admin.role!=='admin')return fail('Solo administradores',403);
    const b=await getBody(request);
+   if(path==='/api/admin/import-images'){
+    // Importa solo carteles públicos del proyecto Supabase original. Nunca solicita URLs arbitrarias.
+    const originals=(await db.prepare("SELECT id,image_url FROM events WHERE image_url LIKE 'https://yczzfhfyrkmgqsblmeze.supabase.co/storage/v1/object/public/event-images/%' ORDER BY id LIMIT 20").all()).results;
+    const copied=[],failed=[];
+    for(const ev of originals){
+     try{
+      const from=new URL(ev.image_url);
+      if(from.protocol!=='https:'||from.hostname!=='yczzfhfyrkmgqsblmeze.supabase.co'||
+        !from.pathname.startsWith('/storage/v1/object/public/event-images/'))throw Error('Origen de imagen no permitido');
+      const response=await fetch(from.toString(),{redirect:'error',signal:AbortSignal.timeout(12000)});
+      if(!response.ok)throw Error('El cartel no está disponible');
+      const length=Number(response.headers.get('content-length')||0);
+      if(length>1800000)throw Error('Cartel demasiado grande: se debe volver a subir desde el panel');
+      const buf=await response.arrayBuffer();
+      if(buf.byteLength<16||buf.byteLength>1800000)throw Error('El cartel supera 1,8 MB o no contiene datos válidos');
+      const bytes=new Uint8Array(buf);
+      const png=bytes[0]===137&&bytes[1]===80&&bytes[2]===78&&bytes[3]===71;
+      const jpg=bytes[0]===255&&bytes[1]===216&&bytes[2]===255;
+      const webp=String.fromCharCode(...bytes.slice(0,4))==='RIFF'&&String.fromCharCode(...bytes.slice(8,12))==='WEBP';
+      const mime=png?'image/png':jpg?'image/jpeg':webp?'image/webp':null;
+      if(!mime)throw Error('Formato de imagen no compatible');
+      const key=crypto.randomUUID(),newURL=url.origin+'/media/'+key;
+      const batch=await db.batch([
+       db.prepare('INSERT INTO media(path,mime,content) VALUES(?,?,?)').bind(key,mime,buf),
+       db.prepare('UPDATE events SET image_url=?,updated_at=CURRENT_TIMESTAMP WHERE id=? AND image_url=? RETURNING id').bind(newURL,ev.id,ev.image_url)
+      ]);
+      if(!batch[1].results?.length)throw Error('El evento se modificó durante la importación');
+      copied.push(ev.id);
+     }catch(e){console.warn('No se pudo importar un cartel de staging',ev.id,String(e).slice(0,160));failed.push({id:ev.id,reason:String(e.message||'No se pudo copiar').slice(0,130)});}
+    }
+    return result({copied:copied.length,failed,remaining:failed.length});
+   }
    if(path==='/api/admin/create-user'){
     const email=String(b.email||'').trim().toLowerCase(),role=b.role==='staff'?'staff':'admin';
     if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))return fail('Correo inválido');
@@ -370,6 +402,15 @@ export async function handleAPI(request,env,url) {
   return fail('API no encontrada',404);
  }catch(e){
   console.error('API error',e);
-  return fail(e.message==='Acceso restringido'?'Acceso restringido':(e.message||'Error de solicitud'),/Acceso restringido|administradores/.test(e.message||'')?403:400);
+  const msg=String(e.message||'');
+  const expected=[
+   'Acceso restringido','Solo administradores','Solo un administrador','No tenés permiso',
+   'No encontrado','Evento no encontrado','El evento no está disponible.','La lista de espera está cerrada.',
+   'La lista está completa.','La lectura elegida no está disponible.',
+   'Elegí una lectura antes de sacar turno.','No se pudo asignar el turno.',
+   'Demasiados intentos. Probá más tarde.','Correo o contraseña incorrectos'
+  ];
+  const publicMessage=expected.includes(msg)?msg:'No se pudo completar la operación. Volvé a intentarlo.';
+  return fail(publicMessage,/Acceso restringido|administradores/.test(msg)?403:400);
  }
 }
