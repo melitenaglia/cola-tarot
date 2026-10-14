@@ -329,7 +329,7 @@ export async function handleAPI(request,env,url) {
    if(bin.length>400000)return fail('Imagen demasiado grande');
    const key=crypto.randomUUID();
    await db.prepare('INSERT INTO media(path,mime,content) VALUES(?,?,?)').bind(key,mime,bin.buffer).run();
-   return result({path:key,url:url.origin+'/media/'+key});
+   return result({path:key,url:'/media/'+key});
   }
   if(path.startsWith('/api/admin/')&&method==='POST'){
    if(!admin||admin.role!=='admin')return fail('Solo administradores',403);
