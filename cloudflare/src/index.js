@@ -20,6 +20,9 @@ export default { async fetch(request,env){
  if(path==='/styles.css')return new Response(css,{headers:{...headers,'content-type':'text/css; charset=utf-8'}});
  if(path==='/compat.js')return new Response(compat,{headers:{...headers,'content-type':'application/javascript; charset=utf-8'}});
  const page=path==='/admin/'?adminHtml:path==='/'?publicHtml:null;
- if(page)return new Response(page,{headers:{...headers,'content-type':'text/html; charset=utf-8','content-security-policy':"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'"}});
+ if(page){
+  const served=env.APP_ENV==='production'?page.replace(/<div data-staging-banner[^>]*>[\s\S]*?<\/div>/,''):page;
+  return new Response(served,{headers:{...headers,'content-type':'text/html; charset=utf-8','content-security-policy':"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data: blob:; connect-src 'self'; base-uri 'self'; frame-ancestors 'none'; object-src 'none'"}});
+ }
  return new Response('No encontrado',{status:404,headers});
 }};
