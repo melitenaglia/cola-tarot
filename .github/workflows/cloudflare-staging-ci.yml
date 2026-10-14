@@ -18,3 +18,5 @@ jobs:
           node-version: '22'
       - name: API regression smoke tests
         run: node --experimental-sqlite cloudflare/tests/smoke.mjs
+      - name: Concurrent turn issuance regression
+        run: python3 cloudflare/tests/concurrency_sqlite.py
